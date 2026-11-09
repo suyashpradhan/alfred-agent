@@ -44,3 +44,7 @@ The mobile app is not the agent runtime. iOS background execution restrictions a
 - Observable execution log and model evaluation harness
 
 The migration target is *capability extraction*, not a complete rewrite by default. Document architecture decisions before changing components.
+
+## Offline memory prototype
+
+`src/memory.ts` adds deterministic synthetic facts, commitment transitions and reminder reservations behind a narrow Store interface. It has no OpenClaw, Railway, model or network integration. `SyntheticStore` is in-memory; serialized snapshot rehydration is tested, not production durability. A future adapter must provide atomic storage and serialize the entire read/change/save operation. See [ADR 0003](decisions/0003-commitment-memory.md) for failure handling, approval, deduplication and operating cost.

@@ -73,3 +73,7 @@ The phone app is a client, not a 24/7 background process. A separate authenticat
 ## Data and licensing
 
 No real secrets, OAuth tokens, live agent state, work data or private memories belong in this repository. It is currently **public**: treat everything committed as public. We can choose an open-source license after auditing code and assets. The future mascot must be original rather than a copy of Meta Muse artwork.
+
+## Offline commitment memory prototype
+
+`src/memory.ts` implements approved synthetic facts and active/waiting/snoozed/resolved commitments, with validated snapshots and duplicate reminder reservations. Run `npm test` using Node 22.23.1; no install is required. See [test results](docs/testing/commitment-memory.md) and [ADR 0003](docs/decisions/0003-commitment-memory.md). This does not change OpenClaw or complete live Stage 1 acceptance.
