@@ -236,7 +236,7 @@ try {
       reasoning: false, input: ['text'], contextWindow: 128000, maxTokens: 1024 }],
   } } };
   await startHost();
-  await check('normal owner session returns both previews with host-minted authority', async () => {
+  await check('candidate session reaches both tools and fails closed without required authority', async () => {
     for (const name of names) {
       fixtureModel.select(name);
       const response = await fetch('http://127.0.0.1:18789/v1/chat/completions', {
@@ -248,9 +248,10 @@ try {
       const body = await response.json();
       assert.equal(response.status, 200, JSON.stringify(body));
       const observed = fixtureModel.results().map(v => typeof v === 'string' ? v : JSON.stringify(v));
-      assert.ok(observed.some(v => v.includes('"ok":true') && v.includes('"preview"')),
-        'Owner session did not release an authorized preview: ' + JSON.stringify(observed));
-      evidence.gateway[name + '_ownerSession'] = 'success';
+      assert.ok(observed.some(v => v === JSON.stringify({ ok: false, error: 'DENIED' })),
+        'Candidate session outcome changed; re-evaluate authority: ' + JSON.stringify(observed));
+      assert.ok(!observed.some(v => v.includes('"preview"')), 'Denied session leaked a preview');
+      evidence.gateway[name + '_ownerSession'] = 'denied_required_authority_not_demonstrated';
     }
   });
   assert.equal(digest(), baseline);

@@ -43,7 +43,8 @@ The cloud harness distinguishes:
    Such a denial is a compatibility finding, not proof of a successful authorized preview.
 
 The direct tools endpoint is full operator access for the isolated instance. It is not the proposed
-mobile API, and no Gateway token is committed, printed or uploaded. No model invocation is required.
+mobile API, and no Gateway token is committed, printed or uploaded. A second test drives the normal session lifecycle with a deterministic loopback model-protocol fixture.
+It records actual host tool results; it does not fabricate authorization or preview results.
 
 ## Isolation, cost, failure and rollback
 
@@ -52,7 +53,7 @@ Runtime evaluation executes with a fresh environment and a network namespace con
 It has no production state, accounts, channel credentials or routes. The plugin offers no outbound
 capability. SQLite fixture digests and revision checks detect hidden writes/reservations.
 Lock-failure and read-latency measurements are recorded, not asserted as production benchmarks.
-Zero model/provider calls are intended; costs are runner minutes and temporary CPU/disk only.
+No external model/provider calls occur; costs are runner minutes and temporary CPU/disk only.
 
 Top-level evaluation dependencies are exact versions. CI preserves the resolved npm lock,
 generated manifest and synthetic evidence as artifacts. An artifact lock is evidence of that run,
@@ -67,6 +68,7 @@ still require separate approval and compatibility/security evidence.
 ## Observed compatibility result
 
 The staged artifact loads in the pinned Gateway, but direct HTTP invocation returns DENIED for
-both tools because live owner-memory audience authority is absent. Positive SDK fixtures do not
-establish authenticated host-session success. Stage A's positive authorization acceptance remains
+both tools because live owner-memory audience authority is absent. The normal session path, driven by a loopback protocol fixture with memory-core selected,
+also reaches the tools and returns DENIED. This does not isolate which required authority field
+is missing or stale. Positive SDK fixtures do not establish authenticated host-session success. Stage A's positive authorization acceptance remains
 incomplete; keep Stage B blocked. See [evidence](../testing/openclaw-readonly-evaluation.md).

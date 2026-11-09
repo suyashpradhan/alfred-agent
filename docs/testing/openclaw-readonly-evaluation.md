@@ -7,11 +7,11 @@ artifact in an isolated Gateway. The actual HTTP tools endpoint reaches both plu
 both return DENIED because the route does not supply live owner-private memory audience authority.
 This is a successful fail-closed test, NOT a successful authenticated preview.
 
-Positive briefing/eligibility tests use synthetic SDK factory contexts. Successful real-host
-owner-session preview invocation remains unverified. Stage A's positive host-authorization
+Positive briefing/eligibility tests use synthetic SDK factory contexts. A normal Gateway session driven by a deterministic loopback model-protocol fixture also reaches
+the plugin but returns DENIED. Successful real-host owner-session preview invocation remains unverified. Stage A's positive host-authorization
 acceptance is therefore incomplete; Stage B and production deployment remain blocked.
-The recommended follow-up is a separately reviewed host-session evaluation using the pinned
-release's actual audience lifecycle, without relaxing guards or treating an operator token as
+The recommended follow-up is a separately reviewed investigation of the pinned
+release's authority lifecycle and native memory-provider requirements, without relaxing guards or treating an operator token as
 memory-audience proof. No paid model or provider account was used in this evaluation.
 
 Pinned source confirms the context passes through the prepared memory audience; the HTTP tool
@@ -36,8 +36,9 @@ The final PR records checks on its current head.
 | No module writes | Fixture hash and revision unchanged; no reminder reservation |
 | Packaging | Strict own-source TypeScript build, CLI manifest validation, staged distributable |
 | Gateway disabled/auth/policy | Disabled plugin unavailable, unauthenticated request rejected, mutating/message tools unavailable |
+| Gateway session | Loopback protocol fixture requests actual tools; required authority is not demonstrated and both deny |
 | Gateway enabled | Both tools reached; both denied absent memory-audience authority |
-| Isolation | Runtime namespace exposes loopback only; no real channel credentials or provider calls |
+| Isolation | Runtime namespace exposes loopback only; no real channel credentials or external provider calls |
 
 Measured in run #12 on a small synthetic fixture: read median 0.39 ms, maximum 0.78 ms,
 exclusive-lock failure 252 ms. These are fixture measurements, not production latency guarantees.

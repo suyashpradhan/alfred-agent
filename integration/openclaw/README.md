@@ -44,6 +44,8 @@ See [ADR 0010](../../docs/decisions/0010-readonly-plugin-evaluation.md) for boun
 ## Current limitation
 
 Actual Gateway HTTP calls reach both tools but return DENIED because they lack live owner-memory
-audience authority. Positive previews currently have only synthetic SDK-context evidence. Stage A
+audience authority. A normal session driven by a deterministic loopback model-protocol fixture also returns DENIED.
+The fixture observes actual tool responses; it supplies no fabricated host authority.
+Positive previews currently have only synthetic SDK-context evidence. Stage A
 acceptance is incomplete and this is not a deployable integration. See the
 [evaluation report](../../docs/testing/openclaw-readonly-evaluation.md) before extending the harness.
