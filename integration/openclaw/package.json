@@ -8,7 +8,7 @@
   },
   "openclaw": {
     "extensions": [
-      "./dist/integration/openclaw/index.js"
+      "./dist/index.js"
     ]
   },
   "dependencies": {
@@ -17,12 +17,13 @@
   "devDependencies": {
     "typescript": "5.9.3",
     "@types/node": "24.10.0",
-    "openclaw": "2026.11.2"
+    "openclaw": "2026.11.2",
+    "esbuild": "0.25.12"
   },
   "scripts": {
-    "build": "tsc -p tsconfig.json"
+    "build": "tsc -p tsconfig.json && esbuild index.ts --bundle --platform=node --format=esm --target=node24 --external:openclaw/* --external:typebox --outfile=dist/index.js"
   },
-  "main": "./dist/integration/openclaw/index.js",
+  "main": "./dist/index.js",
   "files": [
     "dist",
     "openclaw.plugin.json"
