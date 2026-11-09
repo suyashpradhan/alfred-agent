@@ -229,7 +229,7 @@ try {
   hostConfig.gateway.http = { endpoints: { chatCompletions: { enabled: true } } };
   hostConfig.plugins.slots.memory = 'memory-core';
   hostConfig.agents.defaults.model = { primary: 'alfred-fixture/fixture' };
-  hostConfig.agents.defaults.memorySearch = { enabled: false };
+  hostConfig.memory = { search: { enabled: false } };
   hostConfig.models = { providers: { 'alfred-fixture': {
     baseUrl: fixtureModel.baseUrl, apiKey: randomBytes(24).toString('hex'),
     api: 'openai-completions', models: [{ id: 'fixture', name: 'Synthetic protocol fixture',
