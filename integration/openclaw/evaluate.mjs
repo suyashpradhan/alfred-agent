@@ -1,5 +1,6 @@
 // Cloud-only evaluation. Run inside a fresh network namespace with loopback only.
 import assert from 'node:assert/strict';
+import { startFixtureModel } from './fixture-model.mjs';
 import { spawn, spawnSync } from 'node:child_process';
 import { mkdtempSync, mkdirSync, readFileSync, writeFileSync, rmSync, copyFileSync } from 'node:fs';
 import { tmpdir, networkInterfaces } from 'node:os';
@@ -28,7 +29,7 @@ const digest = () => createHash('sha256').update(readFileSync(path)).digest('hex
 const baseline = digest();
 const evidence = { release: '2026.11.2', sourceCommit: 'b556fdf457b026574bf0f1e7b4914b15f3f179ce',
   node: process.version, tests: [], timings: {}, gateway: {}, realMessages: 0 };
-let child;
+let child, fixtureModel;
 let logs = '', token = '';
 const check = async (name, fn) => { await fn(); evidence.tests.push(name); console.log('PASS', name); };
 const context = () => ({ agentId: 'main', senderIsOwner: true,
@@ -224,6 +225,36 @@ try {
   });
   assert.equal(digest(), baseline);
   await stop();
+  fixtureModel = await startFixtureModel();
+  hostConfig.gateway.http = { endpoints: { chatCompletions: { enabled: true } } };
+  hostConfig.plugins.slots.memory = 'memory-core';
+  hostConfig.agents.defaults.model = { primary: 'alfred-fixture/fixture' };
+  hostConfig.agents.defaults.memorySearch = { enabled: false };
+  hostConfig.models = { providers: { 'alfred-fixture': {
+    baseUrl: fixtureModel.baseUrl, apiKey: randomBytes(24).toString('hex'),
+    api: 'openai-completions', models: [{ id: 'fixture', name: 'Synthetic protocol fixture',
+      reasoning: false, input: ['text'], contextWindow: 128000, maxTokens: 1024 }],
+  } } };
+  await startHost();
+  await check('normal owner session returns both previews with host-minted authority', async () => {
+    for (const name of names) {
+      fixtureModel.select(name);
+      const response = await fetch('http://127.0.0.1:18789/v1/chat/completions', {
+        method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + token,
+          'x-openclaw-session-key': 'agent:main:main' },
+        body: JSON.stringify({ model: 'openclaw', messages: [{ role: 'user', content: 'Synthetic evaluation ' + name }] }),
+        signal: AbortSignal.timeout(60000),
+      });
+      const body = await response.json();
+      assert.equal(response.status, 200, JSON.stringify(body));
+      const observed = fixtureModel.results().map(v => typeof v === 'string' ? v : JSON.stringify(v));
+      assert.ok(observed.some(v => v.includes('"ok":true') && v.includes('"preview"')),
+        'Owner session did not release an authorized preview: ' + JSON.stringify(observed));
+      evidence.gateway[name + '_ownerSession'] = 'success';
+    }
+  });
+  assert.equal(digest(), baseline);
+  await stop();
   evidence.gateway.runtimeLoaded = true;
   console.log('EVIDENCE', JSON.stringify(evidence));
 } catch (error) {
@@ -231,6 +262,7 @@ try {
   throw error;
 } finally {
   await stop();
+  await fixtureModel?.close();
   writeFileSync(join(root, 'evidence.json'), JSON.stringify(evidence, null, 2) + '\n');
   rmSync(dir, { recursive: true, force: true });
 }

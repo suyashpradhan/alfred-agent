@@ -45,7 +45,7 @@ export default defineToolPlugin({
     parameters, optional: true, workspaceAccess: false,
     factory: ({ config, toolContext }) => ({
       name, label: name, description: 'Read-only synthetic preview', parameters, outputSchema,
-      hideFromChannelProgress: true,
+      hideFromChannelProgress: true, catalogMode: 'direct-only',
       async execute(_callId, args, signal) {
         const reply = (details: object) => ({ content: [{ type: 'text' as const, text: JSON.stringify(details) }], details });
         try { authorized(toolContext, config.agentId); signal?.throwIfAborted(); }
