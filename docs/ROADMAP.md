@@ -1,6 +1,6 @@
 # Alfred roadmap
 
-Updated: November 9, 2030. This is the ordered execution plan. The feature backlog is not an implementation commitment.
+Updated: November 9, 2026. This is the ordered execution plan. The feature backlog is not an implementation commitment.
 
 ## Stage 0 — Cloud foundation ✅
 Owner-confirmed: Railway OpenClaw running, OpenRouter responds, Telegram connected, 8 PM IST scheduled test delivered.
@@ -54,7 +54,11 @@ Rewriting OpenClaw; unsupervised email sending; company data ingestion; autonomo
 
 ## Offline prototype evidence — 2026-11-09
 
-- [x] TypeScript synthetic memory and commitment state machine: 26 tests passing, including permissions, failure injection, retries and duplicate prevention.
+- [x] TypeScript synthetic memory and commitment state machine: 30 tests passing, including permissions, failure injection, retries and duplicate prevention.
 - [x] Strict module type checking with existing TypeScript 5.9.3.
 
 See `testing/commitment-memory.md` and ADR 0003. Stage 1 live validation and Stage 2 durable production storage, quiet hours and real delivery remain outstanding.
+
+## Approved storage prototype
+
+SQLite storage adds atomic transactions, explicit versioned initialization, backup/restore and synthetic restart/concurrency/failure tests. See ADR 0004 and `testing/sqlite-storage.md`; the PR records cloud CI results. This does not complete production persistence or Stage 1's OpenClaw memory acceptance. Railway remains untouched.
