@@ -1,0 +1,34 @@
+{
+  "name": "alfred-readonly-evaluation",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=24.16.0"
+  },
+  "openclaw": {
+    "extensions": [
+      "./dist/index.js"
+    ]
+  },
+  "dependencies": {
+    "typebox": "1.1.38"
+  },
+  "devDependencies": {
+    "typescript": "5.9.3",
+    "@types/node": "24.10.0",
+    "openclaw": "2026.11.2",
+    "esbuild": "0.25.12"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json && esbuild index.ts --bundle --platform=node --format=esm --target=node24 --external:openclaw/* --external:typebox --outfile=dist/index.js"
+  },
+  "main": "./dist/index.js",
+  "files": [
+    "dist",
+    "openclaw.plugin.json"
+  ],
+  "peerDependencies": {
+    "openclaw": "2026.11.2"
+  }
+}

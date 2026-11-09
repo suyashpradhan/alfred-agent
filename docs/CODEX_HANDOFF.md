@@ -65,3 +65,12 @@ an alternative if compatibility or measured isolation needs justify it. The inst
 unverified. See the [evaluation plan](testing/openclaw-integration-plan.md) for separate approval
 gates, permissions, single-delivery ownership and rollback. No adapter is implemented by this design;
 no Railway access or deployment has occurred. Stage 1 live validation remains outstanding.
+
+## Read-only OpenClaw candidate evaluation
+
+Stage A now has a two-tool synthetic plugin and isolated cloud evaluation; see
+[ADR 0010](decisions/0010-readonly-plugin-evaluation.md) and [evidence](testing/openclaw-readonly-evaluation.md).
+OpenClaw 2026.11.2 / Node 24.16.0 loads the staged artifact. SDK fixture previews succeed, but actual
+HTTP calls deny missing live owner-memory authority. A normal session driven by a loopback protocol fixture also denies; successful authenticated
+owner-session preview is still unverified, so Stage A acceptance is incomplete and Stage B remains blocked. Do not weaken
+guards or infer production compatibility. No Railway access, real accounts or deployment occurred.

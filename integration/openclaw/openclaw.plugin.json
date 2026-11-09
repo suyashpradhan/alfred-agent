@@ -1,0 +1,70 @@
+{
+  "id": "alfred-readonly",
+  "name": "Alfred synthetic read-only preview",
+  "description": "Isolated synthetic evaluation only. No sends, reservations or writes.",
+  "version": "0.1.0",
+  "configSchema": {
+    "type": "object",
+    "required": [
+      "syntheticOnly",
+      "databasePath",
+      "agentId",
+      "clockMs",
+      "timeZone",
+      "start",
+      "end"
+    ],
+    "properties": {
+      "syntheticOnly": {
+        "type": "boolean",
+        "const": true
+      },
+      "databasePath": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 4096
+      },
+      "agentId": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 64
+      },
+      "clockMs": {
+        "type": "integer",
+        "minimum": 0,
+        "maximum": 8640000000000000
+      },
+      "timeZone": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 100
+      },
+      "start": {
+        "type": "string",
+        "pattern": "^(?:[01][0-9]|2[0-3]):[0-5][0-9]$"
+      },
+      "end": {
+        "type": "string",
+        "pattern": "^(?:[01][0-9]|2[0-3]):[0-5][0-9]$"
+      }
+    },
+    "additionalProperties": false
+  },
+  "activation": {
+    "onStartup": true
+  },
+  "contracts": {
+    "tools": [
+      "alfred_briefing_preview",
+      "alfred_reminder_eligibility"
+    ]
+  },
+  "toolMetadata": {
+    "alfred_briefing_preview": {
+      "optional": true
+    },
+    "alfred_reminder_eligibility": {
+      "optional": true
+    }
+  }
+}
