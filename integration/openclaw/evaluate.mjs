@@ -1,7 +1,7 @@
 // Cloud-only evaluation. Run inside a fresh network namespace with loopback only.
 import assert from 'node:assert/strict';
 import { spawn, spawnSync } from 'node:child_process';
-import { mkdtempSync, mkdirSync, readFileSync, writeFileSync, rmSync } from 'node:fs';
+import { mkdtempSync, mkdirSync, readFileSync, writeFileSync, rmSync, copyFileSync } from 'node:fs';
 import { tmpdir, networkInterfaces } from 'node:os';
 import { join, resolve } from 'node:path';
 import { randomBytes, createHash } from 'node:crypto';
@@ -13,6 +13,7 @@ import { SqliteStore } from './dist/src/sqlite-store.js';
 import { getToolPluginMetadata } from 'openclaw/plugin-sdk/tool-plugin';
 
 const root = resolve('integration/openclaw');
+const artifact = join(root, 'artifact');
 const cli = join(root, 'node_modules/openclaw/openclaw.mjs');
 const dir = mkdtempSync(join(tmpdir(), 'alfred-host-evaluation-'));
 const path = join(dir, 'synthetic.sqlite'), now = Date.UTC(2026, 10, 9, 12);
@@ -141,10 +142,16 @@ try {
     evidence.timings.readMedianMs = Number(samples[10].toFixed(2));
     evidence.timings.readMaxMs = Number(samples.at(-1).toFixed(2));
   });
-  command(['plugins', 'build', '--root', root, '--entry', './dist/index.js']);
-  command(['plugins', 'validate', '--root', root, '--entry', './dist/index.js']);
-  evidence.tests.push('pinned CLI builds and validates manifest');
-  console.log('GENERATED_MANIFEST', readFileSync(join(root, 'openclaw.plugin.json'), 'utf8').replaceAll('\n', ' '));
+  // Keep the host installation outside the plugin's captured package root.
+  mkdirSync(join(artifact, 'dist'), { recursive: true });
+  copyFileSync(join(root, 'dist/index.js'), join(artifact, 'dist/index.js'));
+  const packageMetadata = JSON.parse(readFileSync(join(root, 'package.json'), 'utf8'));
+  delete packageMetadata.devDependencies; delete packageMetadata.scripts;
+  writeFileSync(join(artifact, 'package.json'), JSON.stringify(packageMetadata, null, 2));
+  command(['plugins', 'build', '--root', artifact, '--entry', './dist/index.js']);
+  command(['plugins', 'validate', '--root', artifact, '--entry', './dist/index.js']);
+  evidence.tests.push('pinned CLI builds and validates staged manifest');
+  copyFileSync(join(artifact, 'openclaw.plugin.json'), join(root, 'openclaw.plugin.json'));
 
   // Full isolated Gateway. Random ephemeral auth is neither printed nor uploaded.
   token = randomBytes(32).toString('hex');
@@ -155,7 +162,7 @@ try {
     agents: { defaults: { workspace: join(dir, 'workspace') } },
     tools: { allow: names },
     plugins: { allow: ['alfred-readonly'], slots: { memory: 'none' },
-      load: { paths: [root] }, entries: { 'alfred-readonly': { enabled: true, config: cfg } } },
+      load: { paths: [artifact] }, entries: { 'alfred-readonly': { enabled: true, config: cfg } } },
   };
   async function startHost() {
   writeFileSync(configPath, JSON.stringify(hostConfig), { mode: 0o600 });

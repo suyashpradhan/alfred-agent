@@ -8,6 +8,8 @@ jobs:
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
       - uses: actions/setup-node@v4
         with:
           node-version: '24.16.0'
@@ -31,4 +33,4 @@ jobs:
             integration/openclaw/evidence.json
             integration/openclaw/openclaw.plugin.json
             integration/openclaw/package.json
-            integration/openclaw/dist/
+            integration/openclaw/artifact/
