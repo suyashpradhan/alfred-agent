@@ -1,0 +1,32 @@
+name: Isolated OpenClaw evaluation
+on: [push, pull_request, workflow_dispatch]
+permissions:
+  contents: read
+jobs:
+  evaluate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24.16.0'
+      - name: Install pinned evaluation tools in cloud only
+        working-directory: integration/openclaw
+        run: npm install --ignore-scripts --no-audit --no-fund
+      - name: Build strict adapter
+        working-directory: integration/openclaw
+        run: npm run build
+      - name: Evaluate in isolated network namespace
+        run: |
+          mkdir -p /tmp/alfred-openclaw-home
+          sudo unshare --net bash -c 'ip link set lo up; exec env -i PATH="$1" HOME=/tmp/alfred-openclaw-home node integration/openclaw/evaluate.mjs' -- "$PATH"
+      - name: Preserve dependency resolution and synthetic evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: openclaw-evaluation
+          path: |
+            integration/openclaw/package-lock.json
+            integration/openclaw/evidence.json
+            integration/openclaw/openclaw.plugin.json
