@@ -75,3 +75,12 @@ Run `npm run eligibility:synthetic` in cloud development; see [ADR 0007](decisio
 and `docs/testing/reminder-eligibility.md`. The PR records cloud test evidence.
 Legacy `Memory.claim` remains a policy-free synthetic API; future senders must use
 `claimWithPolicy` with trusted explicit configuration. No live scheduling or Railway integration.
+
+## Synthetic delivery simulation
+
+`src/delivery-simulation.ts` connects eligibility, atomic reservation, a closed fake sender and
+outcome recording. Run `npm run delivery:synthetic` in cloud development. Timeout and crash fixtures
+remain blocked for review across restarts; no automatic resend occurs. See
+[ADR 0008](decisions/0008-delivery-simulation.md) and [test guide](testing/delivery-simulation.md).
+The PR records cloud results. No real messages, scheduler, provider integration or Railway access.
+Live Stage 1 validation remains outstanding; this is offline evidence only.
