@@ -52,3 +52,7 @@ The migration target is *capability extraction*, not a complete rewrite by defau
 ## Synthetic briefing preview
 
 `src/briefing.ts` projects one validated memory snapshot into a bounded plain-text preview, with explicit time and disconnected Calendar/Gmail labels. Its SQLite entry point opens storage read-only. It does not invoke commitment mutations, reminder claims, scheduling, models or delivery. See [ADR 0005](decisions/0005-briefing-preview.md) and the [synthetic example](testing/briefing-preview.md).
+
+## Synthetic reminder recovery
+
+Memory.blockedReminders reads blocked reservations and audit history. Memory.reviewReminder atomically checks the observed attempt/status/review count, records an explicit human decision and updates its outcome. The optional version-1 snapshot reviews extension is rejected by old readers; preserve reviewed files on rollback. No sender or provider lookup is present. See [ADR 0006](decisions/0006-reminder-recovery.md).

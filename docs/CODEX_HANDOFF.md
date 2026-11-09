@@ -34,3 +34,7 @@ Read ADR 0004 and `docs/testing/sqlite-storage.md`. Store now exposes load/trans
 ## Briefing preview handoff
 
 PR #2 was verified merged before this work. Run `npm run preview:synthetic` in cloud development to create, read and remove a disposable synthetic SQLite fixture. Read ADR 0005 before changing inclusion or timezone rules. Preview takes explicit UTC time, excludes resolved contents and reports source failures rather than an empty list. No live sources, delivery, schedules or memory changes occur during preview. Future live integration still requires a separate decision.
+
+## Reminder recovery handoff
+
+Run `npm run recovery:synthetic` in cloud development. Read ADR 0006 and `docs/testing/reminder-recovery.md` before changing recovery behavior. Exact decision-ID replays return the original receipt; stale or conflicting reviews fail. Uncertain outcomes remain blocked, non-delivery preserves retry caps/cooldown, and delivered reviews suppress the confirmation day. Optional audit records are not readable by older binaries. A future sender must be stopped/fenced before non-delivery review. No production integration is authorized by this milestone.
