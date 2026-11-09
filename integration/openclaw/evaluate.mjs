@@ -28,6 +28,7 @@ const baseline = digest();
 const evidence = { release: '2026.11.2', sourceCommit: 'b556fdf457b026574bf0f1e7b4914b15f3f179ce',
   node: process.version, tests: [], timings: {}, gateway: {}, realMessages: 0 };
 let child;
+let logs = '', token = '';
 const check = async (name, fn) => { await fn(); evidence.tests.push(name); console.log('PASS', name); };
 const context = () => ({ agentId: 'main', senderIsOwner: true,
   memoryAudience: { kind: 'owner-private', agentId: 'main' },
@@ -132,7 +133,7 @@ try {
   console.log('GENERATED_MANIFEST', readFileSync(join(root, 'openclaw.plugin.json'), 'utf8').replaceAll('\n', ' '));
 
   // Full isolated Gateway. Random ephemeral auth is neither printed nor uploaded.
-  const token = randomBytes(32).toString('hex');
+  token = randomBytes(32).toString('hex');
   const configPath = join(dir, 'openclaw.json'), state = join(dir, 'gateway-state');
   mkdirSync(state);
   const hostConfig = {
@@ -143,7 +144,7 @@ try {
       load: { paths: [root] }, entries: { 'alfred-readonly': { enabled: true, config: cfg } } },
   };
   writeFileSync(configPath, JSON.stringify(hostConfig), { mode: 0o600 });
-  let logs = '';
+  logs = '';
   child = spawn(process.execPath, [cli, 'gateway', 'run'], {
     env: { ...process.env, OPENCLAW_STATE_DIR: state, OPENCLAW_CONFIG_PATH: configPath },
     stdio: ['ignore', 'pipe', 'pipe'],
@@ -189,6 +190,9 @@ try {
   await stop();
   evidence.gateway.runtimeLoaded = true;
   console.log('EVIDENCE', JSON.stringify(evidence));
+} catch (error) {
+  console.log('GATEWAY_DIAGNOSTIC', logs.replaceAll(token || '[no-token]', '[redacted]').replaceAll(dir, '[temporary]').slice(-10000));
+  throw error;
 } finally {
   await stop();
   writeFileSync(join(root, 'evidence.json'), JSON.stringify(evidence, null, 2) + '\n');
