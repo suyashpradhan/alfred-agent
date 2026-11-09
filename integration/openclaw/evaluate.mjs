@@ -146,7 +146,7 @@ try {
   writeFileSync(configPath, JSON.stringify(hostConfig), { mode: 0o600 });
   logs = '';
   child = spawn(process.execPath, [cli, 'gateway', 'run'], {
-    env: { ...process.env, OPENCLAW_STATE_DIR: state, OPENCLAW_CONFIG_PATH: configPath },
+    env: { ...process.env, OPENCLAW_STATE_DIR: state, OPENCLAW_CONFIG_PATH: configPath, OPENCLAW_DEBUG: '1' },
     stdio: ['ignore', 'pipe', 'pipe'],
   });
   child.stdout.on('data', b => { logs = (logs + b).slice(-20000); });
@@ -154,7 +154,7 @@ try {
   let ready = false;
   for (let i = 0; i < 120; i++) {
     if (child.exitCode !== null) break;
-    try { const r = await fetch('http://127.0.0.1:18789/healthz'); if (r.ok) { ready = true; break; } } catch {}
+    try { const r = await fetch('http://127.0.0.1:18789/readyz'); if (r.ok) { ready = true; break; } } catch {}
     await new Promise(r => setTimeout(r, 500));
   }
   if (!ready) {
