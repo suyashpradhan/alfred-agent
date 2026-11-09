@@ -66,3 +66,12 @@ SQLite storage adds atomic transactions, explicit versioned initialization, back
 ## Synthetic reminder recovery
 
 Explicit reviewed recovery for blocked reminders now has a queue, transactional audit receipts, stale-decision checks and restart/retry tests. See ADR 0006 and `testing/reminder-recovery.md`; the PR records cloud results. No real sender, authenticated approval integration or Railway change is included.
+
+## Synthetic quiet hours and eligibility
+
+The offline policy adds explicit timezone/quiet-hour evaluation, read-only reason previews and
+policy-aware transactional reservations. UTC deduplication days and recovery safeguards are preserved.
+Run `npm run eligibility:synthetic` in cloud development; see [ADR 0007](decisions/0007-reminder-eligibility.md)
+and `docs/testing/reminder-eligibility.md`. The PR records cloud test evidence.
+Legacy `Memory.claim` remains a policy-free synthetic API; future senders must use
+`claimWithPolicy` with trusted explicit configuration. No live scheduling or Railway integration.

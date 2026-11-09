@@ -2,10 +2,13 @@
   "name": "alfred-memory-prototype",
   "private": true,
   "type": "module",
-  "engines": { "node": ">=22.18.0" },
+  "engines": {
+    "node": ">=22.18.0"
+  },
   "scripts": {
     "test": "node --test test/*.test.ts",
     "preview:synthetic": "node test/helpers/briefing-example.ts",
-    "recovery:synthetic": "node test/helpers/recovery-example.ts"
+    "recovery:synthetic": "node test/helpers/recovery-example.ts",
+    "eligibility:synthetic": "node test/helpers/eligibility-example.ts"
   }
 }

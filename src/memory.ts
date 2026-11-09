@@ -1,3 +1,5 @@
+import { quietAt } from './quiet-hours.ts';
+import type { QuietHoursPolicy } from './quiet-hours.ts';
 /** Offline prototype. All times are integer Unix milliseconds supplied by the caller. */
 export type Status = 'active' | 'waiting' | 'snoozed' | 'resolved';
 export type Commitment = {
@@ -165,6 +167,32 @@ export class SyntheticStore implements Store {
   }
 }
 
+
+export type EligibilityReason = 'eligible' | 'resolved' | 'waiting' | 'not_due' | 'snoozed' |
+  'delivery_unresolved' | 'already_delivered' | 'cooldown' | 'attempt_limit' | 'quiet_hours';
+export type Eligibility = { commitmentId: string; eligible: boolean; reason: EligibilityReason };
+function policyQuiet(policy: unknown, now: number): boolean {
+  try { return quietAt(policy, now); } catch { throw new MemoryError('INVALID'); }
+}
+/** Shared by preview and transactional reservation; first blocking reason wins. */
+function eligibility(s: Snapshot, c: Commitment, now: number, quiet: boolean): EligibilityReason {
+  const latest = latestReminder(s, c.id);
+  check(now >= c.updatedAt && now >= (latest?.attemptedAt ?? 0) && now >= reviewTime(s, c.id));
+  if (c.status === 'resolved' || c.status === 'waiting') return c.status;
+  if (now < c.dueAt) return 'not_due';
+  if (c.snoozedUntil !== null && now < c.snoozedUntil) return 'snoozed';
+  if (s.reminders.some(r => r.commitmentId === c.id && ['pending', 'unknown'].includes(r.status))) return 'delivery_unresolved';
+  const reviews = (s.reviews ?? []).filter(r => r.reminderKey.startsWith(`${c.id}:`));
+  if (reviews.some(r => r.outcome === 'delivered' && Math.floor(r.reviewedAt / DAY) === Math.floor(now / DAY))) return 'already_delivered';
+  if (reviews.some(r => r.outcome === 'not_delivered' && now < r.reviewedAt + RETRY_DELAY)) return 'cooldown';
+  if (latest?.status === 'failed' && now < latest.attemptedAt + RETRY_DELAY) return 'cooldown';
+  const old = s.reminders.find(r => r.key === `${c.id}:${Math.floor(now / DAY)}`);
+  if (old && old.status !== 'failed') return 'already_delivered';
+  if (old && old.attempts >= MAX_ATTEMPTS) return 'attempt_limit';
+  if (old && now < old.attemptedAt + RETRY_DELAY) return 'cooldown';
+  return quiet ? 'quiet_hours' : 'eligible';
+}
+
 export class Memory {
   private store: Store;
   constructor(store: Store) { this.store = store; }
@@ -215,28 +243,32 @@ export class Memory {
       c.updatedAt = now; return c;
     });
   }
-  /** Reserve before delivery. Return null when not eligible or already reserved. Never sends anything. */
+  /** Read-only point-in-time explanation; never authorizes later delivery. */
+  eligibilityPreview(now: number, policy: QuietHoursPolicy): Eligibility[] {
+    time(now);
+    const quiet = policyQuiet(policy, now), s = this.read();
+    return s.commitments.sort((a, b) => a.id < b.id ? -1 : a.id > b.id ? 1 : 0).map(c => {
+      const reason = eligibility(s, c, now, quiet);
+      return { commitmentId: c.id, eligible: reason === 'eligible', reason };
+    });
+  }
+  /** Policy-aware synthetic reservation; rechecks current state inside the transaction. */
+  claimWithPolicy(commitmentId: string, now: number, policy: QuietHoursPolicy, approval?: Approval): Reminder | null {
+    approve(approval); time(now);
+    return this.reserve(commitmentId, now, approval, policyQuiet(policy, now));
+  }
+  /** Legacy UTC reservation retained for compatibility. Future senders must use claimWithPolicy. */
   claim(commitmentId: string, now: number, approval?: Approval): Reminder | null {
+    return this.reserve(commitmentId, now, approval, false);
+  }
+  private reserve(commitmentId: string, now: number, approval: Approval | undefined, quiet: boolean): Reminder | null {
     return this.write(approval, s => {
       id(commitmentId); time(now);
       const c = s.commitments.find(x => x.id === commitmentId);
       if (!c) throw new MemoryError('NOT_FOUND');
-      check(now >= c.updatedAt);
-      const latest = latestReminder(s, commitmentId);
-      check(now >= (latest?.attemptedAt ?? 0));
-      check(now >= reviewTime(s, commitmentId));
-      if (c.status === 'resolved' || c.status === 'waiting' || now < c.dueAt || (c.snoozedUntil !== null && now < c.snoozedUntil)) return null;
-      // An unresolved delivery blocks later days too: a crash is not evidence of non-delivery.
-      if (s.reminders.some(r => r.commitmentId === commitmentId && ['pending', 'unknown'].includes(r.status))) return null;
-      const reviews = (s.reviews ?? []).filter(r => r.reminderKey.startsWith(`${commitmentId}:`));
-      // A confirmation on a later day must not immediately produce another alert.
-      if (reviews.some(r => r.outcome === 'delivered' && Math.floor(r.reviewedAt / DAY) === Math.floor(now / DAY))) return null;
-      if (reviews.some(r => r.outcome === 'not_delivered' && now < r.reviewedAt + RETRY_DELAY)) return null;
-      // Backoff is per commitment, including when a new UTC day changes the key.
-      if (latest?.status === 'failed' && now < latest.attemptedAt + RETRY_DELAY) return null;
+      if (eligibility(s, c, now, quiet) !== 'eligible') return null;
       const day = Math.floor(now / DAY), key = `${commitmentId}:${day}`;
       const old = s.reminders.find(r => r.key === key);
-      if (old && (old.status !== 'failed' || old.attempts >= MAX_ATTEMPTS || now < old.attemptedAt + RETRY_DELAY)) return null;
       const r: Reminder = { key, commitmentId, day, status: 'pending', attempts: (old?.attempts ?? 0) + 1, attemptedAt: now };
       if (old) Object.assign(old, r); else s.reminders.push(r);
       if (c.status === 'snoozed') { c.status = 'active'; c.snoozedUntil = null; c.updatedAt = now; }
