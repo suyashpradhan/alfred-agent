@@ -5,6 +5,7 @@
   "engines": { "node": ">=22.18.0" },
   "scripts": {
     "test": "node --test test/*.test.ts",
-    "preview:synthetic": "node test/helpers/briefing-example.ts"
+    "preview:synthetic": "node test/helpers/briefing-example.ts",
+    "recovery:synthetic": "node test/helpers/recovery-example.ts"
   }
 }

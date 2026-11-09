@@ -62,3 +62,7 @@ See `testing/commitment-memory.md` and ADR 0003. Stage 1 live validation and Sta
 ## Approved storage prototype
 
 SQLite storage adds atomic transactions, explicit versioned initialization, backup/restore and synthetic restart/concurrency/failure tests. See ADR 0004 and `testing/sqlite-storage.md`; the PR records cloud CI results. This does not complete production persistence or Stage 1's OpenClaw memory acceptance. Railway remains untouched.
+
+## Synthetic reminder recovery
+
+Explicit reviewed recovery for blocked reminders now has a queue, transactional audit receipts, stale-decision checks and restart/retry tests. See ADR 0006 and `testing/reminder-recovery.md`; the PR records cloud results. No real sender, authenticated approval integration or Railway change is included.

@@ -43,7 +43,8 @@ export function previewBriefing(source: Pick<Store, 'load'>, now: number): Previ
   if (!validTime(now)) return failed('INVALID_TIME');
   let snapshot;
   try { snapshot = parseSnapshot(source.load()); } catch { return failed('MEMORY_UNAVAILABLE'); }
-  if (snapshot.commitments.some(c => c.updatedAt > now) || snapshot.reminders.some(r => r.attemptedAt > now)) {
+  if (snapshot.commitments.some(c => c.updatedAt > now) || snapshot.reminders.some(r => r.attemptedAt > now) ||
+      (snapshot.reviews ?? []).some(r => r.reviewedAt > now)) {
     return failed('CLOCK_BEHIND');
   }
   const items = snapshot.commitments.map(c => classify(c, now)).filter((item): item is Item => item !== null);
