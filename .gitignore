@@ -1,0 +1,22 @@
+# Local secrets and private agent state
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.p12
+*credentials*.json
+*token*.json
+openclaw.json
+*.sqlite
+*.sqlite-*
+state/
+sessions/
+logs/
+memory/
+USER.md
+MEMORY.md
+node_modules/
+dist/
+.expo/
+.DS_Store
