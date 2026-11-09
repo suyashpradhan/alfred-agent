@@ -38,3 +38,12 @@ PR #2 was verified merged before this work. Run `npm run preview:synthetic` in c
 ## Reminder recovery handoff
 
 Run `npm run recovery:synthetic` in cloud development. Read ADR 0006 and `docs/testing/reminder-recovery.md` before changing recovery behavior. Exact decision-ID replays return the original receipt; stale or conflicting reviews fail. Uncertain outcomes remain blocked, non-delivery preserves retry caps/cooldown, and delivered reviews suppress the confirmation day. Optional audit records are not readable by older binaries. A future sender must be stopped/fenced before non-delivery review. No production integration is authorized by this milestone.
+
+## Synthetic quiet hours and eligibility
+
+The offline policy adds explicit timezone/quiet-hour evaluation, read-only reason previews and
+policy-aware transactional reservations. UTC deduplication days and recovery safeguards are preserved.
+Run `npm run eligibility:synthetic` in cloud development; see [ADR 0007](decisions/0007-reminder-eligibility.md)
+and `docs/testing/reminder-eligibility.md`. The PR records cloud test evidence.
+Legacy `Memory.claim` remains a policy-free synthetic API; future senders must use
+`claimWithPolicy` with trusted explicit configuration. No live scheduling or Railway integration.

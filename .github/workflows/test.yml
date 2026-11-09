@@ -14,6 +14,7 @@ jobs:
       - run: npm test
       - run: npm run preview:synthetic
       - run: npm run recovery:synthetic
+      - run: npm run eligibility:synthetic
       - name: Install pinned type-check tools in disposable cloud runner
         run: npm install --no-save --ignore-scripts --package-lock=false typescript@5.9.3 @types/node@22.19.0
       - name: Strict TypeScript check

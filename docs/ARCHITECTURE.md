@@ -56,3 +56,12 @@ The migration target is *capability extraction*, not a complete rewrite by defau
 ## Synthetic reminder recovery
 
 Memory.blockedReminders reads blocked reservations and audit history. Memory.reviewReminder atomically checks the observed attempt/status/review count, records an explicit human decision and updates its outcome. The optional version-1 snapshot reviews extension is rejected by old readers; preserve reviewed files on rollback. No sender or provider lookup is present. See [ADR 0006](decisions/0006-reminder-recovery.md).
+
+## Synthetic quiet hours and eligibility
+
+The offline policy adds explicit timezone/quiet-hour evaluation, read-only reason previews and
+policy-aware transactional reservations. UTC deduplication days and recovery safeguards are preserved.
+Run `npm run eligibility:synthetic` in cloud development; see [ADR 0007](decisions/0007-reminder-eligibility.md)
+and `docs/testing/reminder-eligibility.md`. The PR records cloud test evidence.
+Legacy `Memory.claim` remains a policy-free synthetic API; future senders must use
+`claimWithPolicy` with trusted explicit configuration. No live scheduling or Railway integration.
