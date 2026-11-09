@@ -74,3 +74,12 @@ remain blocked for review across restarts; no automatic resend occurs. See
 [ADR 0008](decisions/0008-delivery-simulation.md) and [test guide](testing/delivery-simulation.md).
 The PR records cloud results. No real messages, scheduler, provider integration or Railway access.
 Live Stage 1 validation remains outstanding; this is offline evidence only.
+
+## Proposed OpenClaw integration — design only
+
+[ADR 0009](decisions/0009-openclaw-integration.md) recommends an isolated, read-only tool-plugin
+prototype while OpenClaw retains runtime, channels and scheduling. A restricted service remains
+an alternative if compatibility or measured isolation needs justify it. The installed version is
+unverified. See the [evaluation plan](testing/openclaw-integration-plan.md) for separate approval
+gates, permissions, single-delivery ownership and rollback. No adapter is implemented by this design;
+no Railway access or deployment has occurred. Stage 1 live validation remains outstanding.
