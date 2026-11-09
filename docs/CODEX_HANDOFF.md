@@ -22,3 +22,7 @@
 
 ## Definition of successful handoff
 Codex can open the repo, read relevant context, produce testable code in a PR, and leave the running Railway bot unchanged.
+
+## Implemented offline module
+
+Run `npm test` on Node 22.23.1 without installing dependencies. All 26 runtime tests passed using the existing Node runtime. Strict module type checking also passed with the existing TypeScript 5.9.3 compiler; test typing passed with skipLibCheck due to existing bundled Node declaration incompatibilities. CI runs runtime tests only. Read ADR 0003 and `docs/testing/commitment-memory.md` before adding adapters. Durable storage, quiet hours, authenticated approvals and delivery remain separate approved integration work.

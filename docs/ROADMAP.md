@@ -51,3 +51,10 @@ Owner-confirmed: Railway OpenClaw running, OpenRouter responds, Telegram connect
 
 ## Non-goals for now
 Rewriting OpenClaw; unsupervised email sending; company data ingestion; autonomous buying; always-running phone background agents; production self-modifying code.
+
+## Offline prototype evidence — 2026-11-09
+
+- [x] TypeScript synthetic memory and commitment state machine: 26 tests passing, including permissions, failure injection, retries and duplicate prevention.
+- [x] Strict module type checking with existing TypeScript 5.9.3.
+
+See `testing/commitment-memory.md` and ADR 0003. Stage 1 live validation and Stage 2 durable production storage, quiet hours and real delivery remain outstanding.
