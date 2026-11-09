@@ -25,8 +25,12 @@ Codex can open the repo, read relevant context, produce testable code in a PR, a
 
 ## Implemented offline module
 
-Run `npm test` on Node 22.23.1 without installing dependencies. All 30 runtime tests passed using the existing Node runtime. Strict module type checking also passed with the existing TypeScript 5.9.3 compiler; test typing passed with skipLibCheck due to existing bundled Node declaration incompatibilities. CI runs runtime tests only. Read ADR 0003 and `docs/testing/commitment-memory.md` before adding adapters. Durable storage, quiet hours, authenticated approvals and delivery remain separate approved integration work.
+Run `npm test` on Node 22.23.1 without installing dependencies. All 30 runtime tests passed using the existing Node runtime. Strict module type checking also passed with the existing TypeScript 5.9.3 compiler; test typing passed with skipLibCheck due to existing bundled Node declaration incompatibilities. CI now runs runtime tests and strict source/test type checking using pinned tools in a disposable cloud runner. Read ADR 0003 and `docs/testing/commitment-memory.md` before adding adapters. Durable storage, quiet hours, authenticated approvals and delivery remain separate approved integration work.
 
 ## SQLite prototype handoff
 
 Read ADR 0004 and `docs/testing/sqlite-storage.md`. Store now exposes load/transact, not load/save: adapters must lock before reading and commit before returning. Run `npm test` on Node 22.23.1 in cloud CI; node:sqlite is built in and experimental. Create only synthetic databases in private temporary directories. Opening never initializes or repairs missing data. Restore creates a new file and returns a read-only handle. Production adoption, operator reconciliation and authenticated approvals remain separate decisions.
+
+## Briefing preview handoff
+
+PR #2 was verified merged before this work. Run `npm run preview:synthetic` in cloud development to create, read and remove a disposable synthetic SQLite fixture. Read ADR 0005 before changing inclusion or timezone rules. Preview takes explicit UTC time, excludes resolved contents and reports source failures rather than an empty list. No live sources, delivery, schedules or memory changes occur during preview. Future live integration still requires a separate decision.

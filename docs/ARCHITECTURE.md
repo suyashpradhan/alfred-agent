@@ -48,3 +48,7 @@ The migration target is *capability extraction*, not a complete rewrite by defau
 ## Offline memory prototype
 
 `src/memory.ts` adds deterministic synthetic facts, commitment transitions and reminder reservations behind a narrow Store interface. It has no OpenClaw, Railway, model or network integration. `SyntheticStore` is in-memory; serialized snapshot rehydration is tested, not production durability. The approved SQLite prototype now provides transactional local-file storage for synthetic data; Store.transact owns the complete read/change/validate/commit operation. It is not connected to OpenClaw. See [ADR 0004](decisions/0004-sqlite-storage.md) for initialization, concurrency, backup and restore boundaries. See [ADR 0003](decisions/0003-commitment-memory.md) for failure handling, approval, deduplication and operating cost.
+
+## Synthetic briefing preview
+
+`src/briefing.ts` projects one validated memory snapshot into a bounded plain-text preview, with explicit time and disconnected Calendar/Gmail labels. Its SQLite entry point opens storage read-only. It does not invoke commitment mutations, reminder claims, scheduling, models or delivery. See [ADR 0005](decisions/0005-briefing-preview.md) and the [synthetic example](testing/briefing-preview.md).
