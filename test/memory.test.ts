@@ -146,16 +146,20 @@ test('pending crash and unknown delivery block retries even on later days after 
   }
 });
 
-test('load/save failures are explicit, sanitized, and atomic', () => {
+test('load/transaction failures are explicit, sanitized, and atomic', () => {
   const base = new SyntheticStore(); let fail = false;
-  const store: Store = { load: () => base.load(), save: s => { if (fail) throw new Error('private provider detail'); base.save(s); } };
+  const store: Store = { load: () => base.load(), transact: change => base.transact(s => {
+    const result = change(s);
+    if (fail) throw new Error('private provider detail');
+    return result;
+  }) };
   const memory = new Memory(store); memory.create(input, now, yes); fail = true;
   assert.throws(() => memory.claim(input.id, now, yes), error('STORAGE'));
   assert.equal(memory.read().reminders.length, 0);
   fail = false; const r = memory.claim(input.id, now, yes)!; fail = true;
   assert.throws(() => memory.settle(r.key, 1, 'sent', yes), error('STORAGE'));
   assert.equal(memory.read().reminders[0].status, 'pending');
-  const broken = new Memory({ load: () => { throw new Error('private detail'); }, save: () => {} });
+  const broken = new Memory({ load: () => { throw new Error('private detail'); }, transact: () => { throw new Error('private detail'); } });
   assert.throws(() => broken.read(), error('STORAGE'));
 });
 

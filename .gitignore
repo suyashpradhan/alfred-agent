@@ -20,3 +20,8 @@ node_modules/
 dist/
 .expo/
 .DS_Store
+
+# Prototype databases and private backups
+*.db
+*.db-*
+backups/

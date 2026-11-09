@@ -34,7 +34,7 @@ function fields(value: Record<string, unknown>, names: string[]) {
 function id(value: unknown): asserts value is string { check(typeof value === 'string' && /^[a-z0-9-]{1,64}$/.test(value)); }
 function prose(value: unknown): asserts value is string { check(typeof value === 'string' && value.trim().length > 0 && value.length <= 1000); }
 function time(value: unknown): asserts value is number { check(Number.isSafeInteger(value) && (value as number) >= 0 && (value as number) <= 8_640_000_000_000_000); }
-function approve(value: unknown) {
+export function approve(value: unknown) {
   if (!value || typeof value !== 'object' || Array.isArray(value)) throw new MemoryError('DENIED');
   const descriptor = Object.getOwnPropertyDescriptor(value, 'approved');
   if (!descriptor || !Object.hasOwn(descriptor, 'value') || descriptor.value !== true) throw new MemoryError('DENIED');
@@ -79,13 +79,35 @@ export function parseSnapshot(value: unknown): Snapshot {
   return structuredClone(typed);
 }
 
-/** Adapter must synchronously commit all-or-nothing and serialize writers. No live adapter is shipped. */
-export interface Store { load(): unknown; save(snapshot: Snapshot): void }
+/** Trusted host interface. transact must lock BEFORE reading and commit before returning.
+ * Callbacks are synchronous, deterministic, and must not perform external side effects. */
+export interface Store { load(): unknown; transact<T>(change: (snapshot: Snapshot) => T): T }
+
+/** Reject asynchronous callbacks without leaving a rejected Promise unobserved.
+ * A detached draft may still be changed asynchronously, but it must never commit. */
+export function transactionResult<T>(result: T): T {
+  if (result !== null && (typeof result === 'object' || typeof result === 'function') &&
+      typeof (result as { then?: unknown }).then === 'function') {
+    void Promise.resolve(result).catch(() => {});
+    throw new MemoryError('INVALID');
+  }
+  return structuredClone(result);
+}
 export class SyntheticStore implements Store {
   private snapshot: Snapshot;
+  private writing = false;
   constructor(snapshot: unknown = emptySnapshot()) { this.snapshot = parseSnapshot(snapshot); }
   load(): Snapshot { return structuredClone(this.snapshot); }
-  save(snapshot: Snapshot): void { this.snapshot = parseSnapshot(snapshot); }
+  transact<T>(change: (snapshot: Snapshot) => T): T {
+    if (this.writing) throw new MemoryError('STORAGE');
+    this.writing = true;
+    try {
+      const next = this.load();
+      const result = transactionResult(change(next));
+      this.snapshot = parseSnapshot(next);
+      return result;
+    } finally { this.writing = false; }
+  }
 }
 
 export class Memory {
@@ -98,9 +120,8 @@ export class Memory {
   }
   private write<T>(approval: Approval | undefined, change: (s: Snapshot) => T): T {
     approve(approval);
-    const s = this.read(); const result = change(s); const valid = parseSnapshot(s);
-    try { this.store.save(valid); } catch { throw new MemoryError('STORAGE'); }
-    return structuredClone(result);
+    try { return this.store.transact(change); }
+    catch (e) { throw e instanceof MemoryError ? e : new MemoryError('STORAGE'); }
   }
   remember(fact: Fact, approval?: Approval): void {
     this.write(approval, s => {
