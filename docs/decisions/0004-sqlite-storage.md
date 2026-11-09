@@ -19,12 +19,19 @@ contract. Store access is a trusted-host capability; application writes still go
 through Memory's explicit approval check. Transaction callbacks must be synchronous,
 deterministic and free of network or other external side effects. Do not expose
 the adapter, callback interface or database paths to model output or clients.
+Promise/thenable callback results are rejected as INVALID before commit, with
+rejections consumed to avoid process-level unhandled errors. Asynchronous drafts
+are detached and never committed. This does not cancel arbitrary external work
+started by an incorrect callback; callbacks must still be side-effect-free.
 
 ## Durability and failure behavior
 
 - Explicit approved create initializes version 1. It reserves a new owner-only
   file and never overwrites one. Ordinary open requires an existing regular file;
   missing, empty, corrupt, unsupported or incomplete databases fail closed.
+  Open options accept only an optional own boolean readOnly field. Typos, inherited
+  options, accessors and non-booleans are rejected before opening a connection;
+  a malformed read-only request never falls back to writable access.
 - Use SQLite's default rollback journal and synchronous=FULL on every connection.
   Keep the database and its journal together on a local filesystem. No network
   filesystems or multi-host shared-volume operation are supported.

@@ -6,13 +6,45 @@ import { DatabaseSync } from 'node:sqlite';
 import { mkdtempSync, rmSync, readFileSync, writeFileSync, statSync, symlinkSync, existsSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { Memory, MemoryError, DAY, RETRY_DELAY } from '../src/memory.ts';
+import { Memory, MemoryError, SyntheticStore, DAY, RETRY_DELAY } from '../src/memory.ts';
 import { SqliteStore, MAX_SNAPSHOT_BYTES } from '../src/sqlite-store.ts';
 
 const yes = { approved: true } as const;
 const now = Date.UTC(2026, 10, 9, 12);
 const task = { id: 'synthetic-task', text: 'Return a fictional book', dueAt: now };
 const error = (code: string) => (e: unknown) => e instanceof MemoryError && e.code === code && e.message === code;
+
+test('asynchronous callbacks roll back and rejected promises do not escape either store', async t => {
+  const { store } = fixture(t);
+  for (const adapter of [store, new SyntheticStore()]) {
+    const before = adapter.load();
+    assert.throws(() => adapter.transact(async s => {
+      s.facts.push({ id: 'async-reject', text: 'Must not commit' });
+      await Promise.resolve();
+      throw new Error('Synthetic asynchronous failure');
+    }), error('INVALID'));
+    assert.throws(() => adapter.transact(async s => {
+      await Promise.resolve();
+      s.facts.push({ id: 'async-resolve', text: 'Must not commit' });
+    }), error('INVALID'));
+    // Let the async continuations and unhandled-rejection processing run.
+    await new Promise<void>(resolve => setImmediate(resolve));
+    assert.deepEqual(adapter.load(), before);
+    adapter.transact(s => s.facts.push({ id: 'sync', text: 'A subsequent synchronous update works' }));
+  }
+});
+
+test('malformed read-only options fail closed without executing getters', t => {
+  const { path, memory } = fixture(t); const before = memory.read();
+  let getterCalled = false;
+  const accessor = Object.defineProperty({}, 'readOnly', { get() { getterCalled = true; return true; } });
+  for (const options of [{ readOnly: 'true' }, { readOnly: 0 }, { readonly: true },
+    Object.create({ readOnly: true }), accessor, [], null]) {
+    assert.throws(() => SqliteStore.open(path, options as { readOnly?: boolean }), error('STORAGE'));
+  }
+  assert.equal(getterCalled, false); assert.deepEqual(memory.read(), before);
+  raw(path, db => assert.equal(db.prepare('SELECT revision FROM memory_state').get()!.revision, 0));
+});
 function fixture(t: TestContext) {
   const dir = mkdtempSync(join(tmpdir(), 'alfred-synthetic-'));
   t.after(() => rmSync(dir, { recursive: true, force: true }));

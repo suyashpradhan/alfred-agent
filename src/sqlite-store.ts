@@ -1,7 +1,7 @@
 import { DatabaseSync } from 'node:sqlite';
 import { closeSync, fsyncSync, lstatSync, openSync, unlinkSync } from 'node:fs';
 import { isAbsolute } from 'node:path';
-import { approve, emptySnapshot, MemoryError, parseSnapshot } from './memory.ts';
+import { approve, emptySnapshot, MemoryError, parseSnapshot, transactionResult } from './memory.ts';
 import type { Approval, Snapshot, Store } from './memory.ts';
 
 export const BUSY_TIMEOUT_MS = 250;
@@ -69,7 +69,12 @@ export class SqliteStore implements Store {
   static open(path: string, options: { readOnly?: boolean } = {}): SqliteStore {
     let db: DatabaseSync | undefined;
     try {
-      db = SqliteStore.connect(path, options.readOnly === true);
+      if (!options || typeof options !== 'object' || Array.isArray(options) ||
+          ![Object.prototype, null].includes(Object.getPrototypeOf(options)) ||
+          Reflect.ownKeys(options).some(key => key !== 'readOnly')) throw storageError();
+      const flag = Object.getOwnPropertyDescriptor(options, 'readOnly');
+      if (flag && (!Object.hasOwn(flag, 'value') || typeof flag.value !== 'boolean')) throw storageError();
+      db = SqliteStore.connect(path, flag?.value === true);
       const store = new SqliteStore(db);
       store.inspect();
       return store;
@@ -105,7 +110,7 @@ export class SqliteStore implements Store {
       try { current = this.inspect(); } catch { throw storageError(); }
       if (current.revision === Number.MAX_SAFE_INTEGER) throw storageError();
       // Clone the result before commit: a Promise or non-cloneable result aborts the write.
-      const result = structuredClone(change(current.snapshot));
+      const result = transactionResult(change(current.snapshot));
       const payload = encode(current.snapshot);
       const update = this.db.prepare('UPDATE memory_state SET payload = ?, revision = revision + 1 WHERE id = 1 AND revision = ?')
         .run(payload, current.revision);

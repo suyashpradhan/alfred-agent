@@ -5,7 +5,7 @@ No dependency installation is needed. The SQLite experimental warning is expecte
 with this pinned runtime. Tests use synthetic data in temporary directories only.
 
 The existing 30 memory tests are retained with their failure injection adapted to
-the transactional Store interface. Fifteen additional storage tests cover:
+the transactional Store interface. Seventeen additional storage tests cover:
 
 - A new process reading committed facts, commitment states and reminder history.
 - Two processes preserving both updates and reserving exactly one reminder.
@@ -15,6 +15,8 @@ the transactional Store interface. Fifteen additional storage tests cover:
 - Missing/empty/corrupt databases, unsupported versions, missing singleton state.
 - Read-only and closed handles; private file permissions and symlink rejection.
 - Snapshot size and revision bounds.
+- Rejected asynchronous callbacks without unhandled rejections or committed drafts.
+- Malformed read-only options failing closed without invoking accessors.
 - Consistent backup/restore, refusal to overwrite, read-only restored handles,
   reminder deduplication and uncertain-delivery suppression after reopening.
 
@@ -22,6 +24,10 @@ Cloud CI results for the exact commit are recorded in the PR. No local execution
 of this new suite or production verification is claimed. SQL abort/lock tests
 exercise failure handling; they do not simulate every OS/disk failure or certify
 hardware power-loss durability.
+
+CI also installs pinned TypeScript 5.9.3 and Node 22.19.0 type declarations in the
+disposable cloud runner, then strictly type-checks source and tests. These are
+development checks only; no runtime dependencies or Mac installations are added.
 
 ## Synthetic example (cloud only)
 

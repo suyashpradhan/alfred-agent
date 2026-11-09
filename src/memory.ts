@@ -82,6 +82,17 @@ export function parseSnapshot(value: unknown): Snapshot {
 /** Trusted host interface. transact must lock BEFORE reading and commit before returning.
  * Callbacks are synchronous, deterministic, and must not perform external side effects. */
 export interface Store { load(): unknown; transact<T>(change: (snapshot: Snapshot) => T): T }
+
+/** Reject asynchronous callbacks without leaving a rejected Promise unobserved.
+ * A detached draft may still be changed asynchronously, but it must never commit. */
+export function transactionResult<T>(result: T): T {
+  if (result !== null && (typeof result === 'object' || typeof result === 'function') &&
+      typeof (result as { then?: unknown }).then === 'function') {
+    void Promise.resolve(result).catch(() => {});
+    throw new MemoryError('INVALID');
+  }
+  return structuredClone(result);
+}
 export class SyntheticStore implements Store {
   private snapshot: Snapshot;
   private writing = false;
@@ -92,7 +103,7 @@ export class SyntheticStore implements Store {
     this.writing = true;
     try {
       const next = this.load();
-      const result = structuredClone(change(next));
+      const result = transactionResult(change(next));
       this.snapshot = parseSnapshot(next);
       return result;
     } finally { this.writing = false; }
