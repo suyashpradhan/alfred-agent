@@ -129,6 +129,7 @@ try {
   command(['plugins', 'build', '--root', root, '--entry', './dist/integration/openclaw/index.js']);
   command(['plugins', 'validate', '--root', root, '--entry', './dist/integration/openclaw/index.js']);
   evidence.tests.push('pinned CLI builds and validates manifest');
+  console.log('GENERATED_MANIFEST', readFileSync(join(root, 'openclaw.plugin.json'), 'utf8').replaceAll('\n', ' '));
 
   // Full isolated Gateway. Random ephemeral auth is neither printed nor uploaded.
   const token = randomBytes(32).toString('hex');
@@ -176,6 +177,7 @@ try {
   await check('Gateway loads plugin and invokes both tools with real host context', async () => {
     for (const name of names) {
       const r = await http(name);
+      if (r.status !== 200) console.log(logs.replaceAll(token, '[redacted]').replaceAll(dir, '[temporary]').slice(-8000));
       assert.equal(r.status, 200, JSON.stringify(r.body));
       const result = r.body.result.details;
       // Missing owner audience MUST fail closed, not be replaced with fabricated identity.
