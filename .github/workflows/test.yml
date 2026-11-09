@@ -12,6 +12,7 @@ jobs:
         with:
           node-version: '22.23.1'
       - run: npm test
+      - run: npm run preview:synthetic
       - name: Install pinned type-check tools in disposable cloud runner
         run: npm install --no-save --ignore-scripts --package-lock=false typescript@5.9.3 @types/node@22.19.0
       - name: Strict TypeScript check

@@ -16,7 +16,7 @@ Owner-confirmed: Railway OpenClaw running, OpenRouter responds, Telegram connect
 **Done:** Alfred consistently identifies itself, retrieves the approved test fact in a fresh session, and existing messaging and scheduling remain intact.
 
 ## Stage 2 — Useful proactive routines (V1)
-- [ ] Format an evening briefing using synthetic data; clearly mark disconnected sources.
+- [x] Format an evening briefing using synthetic data; clearly mark disconnected sources (read-only preview, ADR 0005; cloud test results in the PR).
 - [ ] Persist commitments with states `active`, `waiting`, `snoozed`, `resolved`.
 - [ ] Suppress duplicate messages and respect quiet hours.
 - [ ] Read tomorrow's personal calendar through a narrowly scoped approved integration.
