@@ -9,6 +9,7 @@
     "test": "node --test test/*.test.ts",
     "preview:synthetic": "node test/helpers/briefing-example.ts",
     "recovery:synthetic": "node test/helpers/recovery-example.ts",
-    "eligibility:synthetic": "node test/helpers/eligibility-example.ts"
+    "eligibility:synthetic": "node test/helpers/eligibility-example.ts",
+    "delivery:synthetic": "node test/helpers/delivery-example.ts"
   }
 }
