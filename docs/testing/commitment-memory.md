@@ -9,7 +9,13 @@ the recorded run; no development dependencies were installed on the Mac.
 
 ## Recorded results — 2026-11-09
 
-`npm test`: **26 passed, 0 failed, 0 skipped**.
+`npm test`: **30 passed, 0 failed, 0 skipped** after PR review fixes.
+
+Four new regression tests failed against the original PR and pass after fixing:
+inherited/accessor approval flags, retry backoff across UTC midnight, clock
+rollback creating earlier-day reminders, and backdated state transitions after
+a reminder attempt. Strict module checking and source/test checking with the
+existing bundled Node declarations (`--skipLibCheck`) also passed again.
 
 Covered: all 16 state/command combinations; synthetic fact and commitment recovery
 through JSON serialization into a fresh store; defensive copies; missing approvals;
@@ -20,7 +26,8 @@ crashes and uncertain delivery; atomic save and load failures; malformed snapsho
 unsupported versions, invalid timestamps, commands and missing records.
 
 The test source itself is the synthetic example: `test/memory.test.ts`. No real
-messages are sent. The GitHub workflow is prepared but has not been run in GitHub.
+messages are sent. The original PR's GitHub Actions run #2 passed. The PR
+description records CI results for the latest revision separately.
 Node executes TypeScript by stripping types. Separately, strict static checking
 passed with the already-installed TypeScript 5.9.3 bundled with Vercel:
 

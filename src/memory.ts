@@ -34,8 +34,19 @@ function fields(value: Record<string, unknown>, names: string[]) {
 function id(value: unknown): asserts value is string { check(typeof value === 'string' && /^[a-z0-9-]{1,64}$/.test(value)); }
 function prose(value: unknown): asserts value is string { check(typeof value === 'string' && value.trim().length > 0 && value.length <= 1000); }
 function time(value: unknown): asserts value is number { check(Number.isSafeInteger(value) && (value as number) >= 0 && (value as number) <= 8_640_000_000_000_000); }
-function approve(value: unknown) { if (!value || (value as Approval).approved !== true) throw new MemoryError('DENIED'); }
+function approve(value: unknown) {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) throw new MemoryError('DENIED');
+  const descriptor = Object.getOwnPropertyDescriptor(value, 'approved');
+  if (!descriptor || !Object.hasOwn(descriptor, 'value') || descriptor.value !== true) throw new MemoryError('DENIED');
+}
 function unique(values: string[]) { check(new Set(values).size === values.length); }
+function latestReminder(s: Snapshot, commitmentId: string): Reminder | undefined {
+  let latest: Reminder | undefined;
+  for (const r of s.reminders) {
+    if (r.commitmentId === commitmentId && (!latest || r.attemptedAt > latest.attemptedAt)) latest = r;
+  }
+  return latest;
+}
 export function emptySnapshot(): Snapshot { return { version: 1, facts: [], commitments: [], reminders: [] }; }
 
 /** Strict runtime validation at persistence boundaries; never treat corrupt state as empty. */
@@ -54,6 +65,7 @@ export function parseSnapshot(value: unknown): Snapshot {
   }
   const typed = s as unknown as Snapshot;
   unique(typed.facts.map(f => f.id)); unique(typed.commitments.map(c => c.id));
+  const commitmentIds = new Set(typed.commitments.map(c => c.id));
   for (const item of reminders) {
     const r = record(item); fields(r, ['key', 'commitmentId', 'day', 'status', 'attempts', 'attemptedAt']);
     id(r.commitmentId); time(r.day); time(r.attemptedAt);
@@ -61,7 +73,7 @@ export function parseSnapshot(value: unknown): Snapshot {
     check(r.key === `${r.commitmentId}:${r.day}`);
     check(['pending', 'sent', 'failed', 'unknown'].includes(r.status as string));
     check(Number.isInteger(r.attempts) && (r.attempts as number) >= 1 && (r.attempts as number) <= MAX_ATTEMPTS);
-    check(typed.commitments.some(c => c.id === r.commitmentId));
+    check(commitmentIds.has(r.commitmentId));
   }
   unique(typed.reminders.map(r => r.key));
   return structuredClone(typed);
@@ -118,6 +130,7 @@ export class Memory {
       const c = s.commitments.find(x => x.id === commitmentId);
       if (!c) throw new MemoryError('NOT_FOUND');
       check(now >= c.updatedAt);
+      check(now >= (latestReminder(s, commitmentId)?.attemptedAt ?? 0));
       if (c.status === 'resolved' && command.type !== 'resolve') throw new MemoryError('TRANSITION');
       if (command.type === 'snooze') { time(command.until); check(command.until > now); }
       c.status = command.type === 'activate' ? 'active' : command.type === 'wait' ? 'waiting' : command.type === 'resolve' ? 'resolved' : 'snoozed';
@@ -132,9 +145,13 @@ export class Memory {
       const c = s.commitments.find(x => x.id === commitmentId);
       if (!c) throw new MemoryError('NOT_FOUND');
       check(now >= c.updatedAt);
+      const latest = latestReminder(s, commitmentId);
+      check(now >= (latest?.attemptedAt ?? 0));
       if (c.status === 'resolved' || c.status === 'waiting' || now < c.dueAt || (c.snoozedUntil !== null && now < c.snoozedUntil)) return null;
       // An unresolved delivery blocks later days too: a crash is not evidence of non-delivery.
       if (s.reminders.some(r => r.commitmentId === commitmentId && ['pending', 'unknown'].includes(r.status))) return null;
+      // Backoff is per commitment, including when a new UTC day changes the key.
+      if (latest?.status === 'failed' && now < latest.attemptedAt + RETRY_DELAY) return null;
       const day = Math.floor(now / DAY), key = `${commitmentId}:${day}`;
       const old = s.reminders.find(r => r.key === key);
       if (old && (old.status !== 'failed' || old.attempts >= MAX_ATTEMPTS || now < old.attemptedAt + RETRY_DELAY)) return null;

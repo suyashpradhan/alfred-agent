@@ -34,13 +34,15 @@ storage needs transactions/CAS before deployment.
 An eligible snoozed commitment becomes active when a reminder is reserved. IDs
 cannot be reused to change a commitment or fact; conflicting duplicates fail.
 Dates are nonnegative integer Unix milliseconds. Snooze deadlines must be future
-relative to the command time; clocks older than the commitment update are rejected.
+relative to the command time; claims and transitions reject clocks older than the
+commitment update or its latest reminder attempt, including after snapshot reload.
 
 Reserve a reminder before invoking any future delivery adapter. The key combines
 commitment ID and UTC day. A sent reminder suppresses subsequent claims for that
 day, even after state changes or snapshot reload. Only a confirmed non-delivery
 (`failed`) permits retries, with a 60-second delay and at most three attempts per
-UTC day. A new day permits a new daily reminder. An attempt number fences stale
+UTC day. The 60-second backoff also applies across midnight. A new day permits a
+new daily reminder once that delay has elapsed. An attempt number fences stale
 callbacks. `pending` and `unknown` block all later claims for that commitment,
 including later days. No automatic recovery or expiry is implemented: deliberate
 operator reconciliation is required before a future deployment can safely resume
@@ -56,6 +58,8 @@ an ambiguous delivery. This favors avoiding duplicates over guaranteed delivery.
 - Approval is a trusted-host API contract, **not authentication**. Never accept an
   `approved` field directly from model output or an untrusted client. A future
   integration must authenticate the human and bind approval to the exact operation.
+  The flag must be an own data property set to true; inherited flags and getters
+  are rejected without invoking the getter.
 - This is not an exactly-once delivery guarantee. A future sender must honor
   reservations and enforce provider idempotency, resolution races, and quiet hours.
 - Snapshot/ledger storage grows with usage; retention and deletion policies remain

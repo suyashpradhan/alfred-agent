@@ -12,6 +12,50 @@ function setup() {
 }
 function error(code: string) { return (e: unknown) => (e as { code: string }).code === code; }
 
+test('approval must be an explicit own data property, never inherited or an accessor', () => {
+  const { memory } = setup(); const before = memory.read();
+  let getterCalled = false;
+  const accessor = Object.defineProperty({}, 'approved', { get() { getterCalled = true; return true; } });
+  for (const approval of [Object.create({ approved: true }), accessor, { approved: 'true' }, [], {}]) {
+    const forged = approval as Approval;
+    for (const operation of [
+      () => memory.remember({ id: 'fact', text: 'Synthetic fact' }, forged),
+      () => memory.create(input, now, forged),
+      () => memory.transition(input.id, { type: 'resolve' }, now, forged),
+      () => memory.claim(input.id, now, forged),
+      () => memory.settle('key', 1, 'sent', forged),
+    ]) assert.throws(operation, error('DENIED'));
+  }
+  assert.equal(getterCalled, false);
+  assert.deepEqual(memory.read(), before);
+});
+
+test('retry backoff survives the UTC midnight boundary and snapshot reload', () => {
+  const { memory } = setup();
+  const midnight = (Math.floor(now / DAY) + 1) * DAY;
+  const first = memory.claim(input.id, midnight - 1000, yes)!;
+  memory.settle(first.key, first.attempts, 'failed', yes);
+  const fresh = new Memory(new SyntheticStore(memory.read()));
+  assert.equal(fresh.claim(input.id, midnight, yes), null);
+  assert.equal(fresh.claim(input.id, midnight - 1000 + RETRY_DELAY - 1, yes), null);
+  assert.ok(fresh.claim(input.id, midnight - 1000 + RETRY_DELAY, yes));
+});
+
+test('clock rollback cannot reserve an earlier day after a later delivery', () => {
+  const { memory } = setup(); const r = memory.claim(input.id, now + DAY, yes)!;
+  memory.settle(r.key, 1, 'sent', yes);
+  const fresh = new Memory(new SyntheticStore(memory.read())); const before = fresh.read();
+  assert.throws(() => fresh.claim(input.id, now, yes), error('INVALID'));
+  assert.deepEqual(fresh.read(), before);
+});
+
+test('clock rollback cannot backdate transitions before the latest reminder attempt', () => {
+  const { memory } = setup(); memory.claim(input.id, now + 1000, yes);
+  const before = memory.read();
+  assert.throws(() => memory.transition(input.id, { type: 'resolve' }, now, yes), error('INVALID'));
+  assert.deepEqual(memory.read(), before);
+});
+
 test('approved synthetic fact and commitment survive serialized session handoff', () => {
   const { memory } = setup();
   memory.remember({ id: 'synthetic-preference', text: 'The fictional user prefers blue notebooks' }, yes);
