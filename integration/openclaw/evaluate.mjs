@@ -148,8 +148,11 @@ try {
   const packageMetadata = JSON.parse(readFileSync(join(root, 'package.json'), 'utf8'));
   delete packageMetadata.devDependencies; delete packageMetadata.scripts;
   writeFileSync(join(artifact, 'package.json'), JSON.stringify(packageMetadata, null, 2));
+  const committedManifest = JSON.parse(readFileSync(join(root, 'openclaw.plugin.json'), 'utf8'));
   command(['plugins', 'build', '--root', artifact, '--entry', './dist/index.js']);
   command(['plugins', 'validate', '--root', artifact, '--entry', './dist/index.js']);
+  assert.deepEqual(JSON.parse(readFileSync(join(artifact, 'openclaw.plugin.json'), 'utf8')), committedManifest);
+  command(['plugins', 'build', '--root', artifact, '--entry', './dist/index.js', '--check']);
   evidence.tests.push('pinned CLI builds and validates staged manifest');
   copyFileSync(join(artifact, 'openclaw.plugin.json'), join(root, 'openclaw.plugin.json'));
 
@@ -208,15 +211,15 @@ try {
       assert.notEqual((await http(name)).status, 200);
     }
   });
-  await check('Gateway loads plugin and invokes both tools with real host context', async () => {
+  await check('Gateway loads both tools but denies HTTP calls lacking live owner audience', async () => {
     for (const name of names) {
       const r = await http(name);
       if (r.status !== 200) console.log(logs.replaceAll(token, '[redacted]').replaceAll(dir, '[temporary]').slice(-8000));
       assert.equal(r.status, 200, JSON.stringify(r.body));
       const result = r.body.result.details;
       // Missing owner audience MUST fail closed, not be replaced with fabricated identity.
-      assert.ok(result.ok === true || result.error === 'DENIED', JSON.stringify(result));
-      evidence.gateway[name] = result.ok ? 'success' : 'denied_missing_live_owner_authority';
+      assert.deepEqual(result, { ok: false, error: 'DENIED' });
+      evidence.gateway[name] = 'denied_missing_live_owner_authority';
     }
   });
   assert.equal(digest(), baseline);
