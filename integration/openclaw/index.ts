@@ -36,7 +36,7 @@ function authorized(ctx: OpenClawPluginToolContext, agentId: string) {
   }
   ctx.assertInvocationCurrent(); ctx.assertMemoryAudienceCurrent();
 }
-export default defineToolPlugin({
+const plugin = defineToolPlugin({
   id: 'alfred-readonly', name: 'Alfred synthetic read-only preview',
   description: 'Isolated synthetic evaluation only. No sends, reservations or writes.',
   configSchema,
@@ -84,3 +84,15 @@ export default defineToolPlugin({
     }),
   })),
 });
+
+// The pinned convenience helper emits v1 factories. Opt into the public v2
+// registration contract without manufacturing or weakening host authority.
+const register = plugin.register;
+plugin.register = api => register({
+  ...api,
+  registerTool(factory, options) {
+    if (typeof factory !== 'function') throw new Error('Expected context-sensitive tool factory');
+    api.registerTool({ contextVersion: 2, create: factory }, options);
+  },
+});
+export default plugin;

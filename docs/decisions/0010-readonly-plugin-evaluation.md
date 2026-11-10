@@ -1,6 +1,6 @@
 # ADR 0010 — Isolated read-only plugin evaluation
 
-Status: isolated candidate evaluated; positive real-host owner-session preview remains unverified. Not approved for deployment.
+Status: initial evaluation findings; authorization compatibility findings superseded by [ADR 0011](0011-readonly-authority-compatibility.md). Not approved for deployment.
 
 ## Candidate and boundary
 
