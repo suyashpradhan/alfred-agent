@@ -9,6 +9,7 @@ import { randomBytes, createHash } from 'node:crypto';
 import { performance } from 'node:perf_hooks';
 import { DatabaseSync } from 'node:sqlite';
 import plugin from './dist/index.js';
+import authorityFixturePlugin from './dist/authority-fixture.js';
 import { Memory } from './dist/src/memory.js';
 import { SqliteStore } from './dist/src/sqlite-store.js';
 import { getToolPluginMetadata } from 'openclaw/plugin-sdk/tool-plugin';
@@ -66,6 +67,16 @@ try {
   await check('runtime network namespace has loopback only', () => {
     assert.deepEqual(Object.keys(networkInterfaces()), ['lo']);
   });
+  await check('native fixture exposes no tools, corpus or writes and honors caller guards', async () => {
+    let capability;
+    authorityFixturePlugin.register({ registerMemoryCapability(value) { capability = value; } });
+    assert.deepEqual(Object.keys(capability), ['providerRuntime']);
+    let checks = 0;
+    assert.deepEqual(await capability.providerRuntime.open({ context: { assertCurrent() { checks++; } } }),
+      { provider: null, error: 'Synthetic provider has no corpus' });
+    assert.equal(checks, 1);
+    await assert.rejects(capability.providerRuntime.open({ context: { assertCurrent() { throw Error('stale'); } } }), /stale/);
+  });
   await check('SDK registers exactly two optional read tools', () => {
     assert.deepEqual(getToolPluginMetadata(plugin).tools.map(t => t.name), names);
     assert.deepEqual(tools().map(t => t.name), names);
@@ -75,16 +86,19 @@ try {
     assert.equal(digest(), baseline);
   });
   await check('missing/wrong/stale audience and identity deny without data', async () => {
-    for (const change of [{ senderIsOwner: false }, { memoryAudience: undefined }, { agentId: 'other' },
+    for (const change of [{ senderIsOwner: false }, { senderIsOwner: undefined }, { memoryAudience: undefined },
+      { memoryAudience: { kind: 'owner-private', agentId: 'other' } }, { agentId: 'other' },
       { memoryAudience: { kind: 'conversation', agentId: 'main' } },
       { assertInvocationCurrent: undefined }, { assertMemoryAudienceCurrent: undefined },
       { assertInvocationCurrent() { throw Error('private stale identity'); } },
       { assertMemoryAudienceCurrent() { throw Error('private stale audience'); } }]) {
       for (const name of names) assert.deepEqual(await invoke(name, cfg, { ...context(), ...change }), { ok: false, error: 'DENIED' });
     }
-    let calls = 0;
-    const staleAtRelease = { ...context(), assertMemoryAudienceCurrent() { if (++calls > 1) throw Error('stale'); } };
-    assert.deepEqual(await invoke(names[0], cfg, staleAtRelease), { ok: false, error: 'DENIED' });
+    for (const name of names) for (const guard of ['assertInvocationCurrent', 'assertMemoryAudienceCurrent']) {
+      let calls = 0;
+      const staleAtRelease = { ...context(), [guard]() { if (++calls > 1) throw Error('stale'); } };
+      assert.deepEqual(await invoke(name, cfg, staleAtRelease), { ok: false, error: 'DENIED' });
+    }
   });
   await check('model arguments cannot choose path, clock, policy or approval', async () => {
     for (const args of [{ databasePath: '/missing' }, { approved: true }, { now }, [], null]) {
@@ -249,24 +263,30 @@ try {
     api: 'openai-completions', models: [{ id: 'fixture', name: 'Synthetic protocol fixture',
       reasoning: false, input: ['text'], contextWindow: 128000, maxTokens: 1024 }],
   } } };
-  await startHost();
-  await check('candidate session reaches both tools and fails closed without required authority', async () => {
+  async function sessionPreview(name, sessionKey, authenticated = true) {
+    fixtureModel.select(name);
+    const response = await fetch('http://127.0.0.1:18789/v1/chat/completions', {
+      method: 'POST', headers: { 'Content-Type': 'application/json',
+        ...(authenticated ? { Authorization: 'Bearer ' + token } : {}),
+        'x-openclaw-session-key': sessionKey },
+      body: JSON.stringify({ model: 'openclaw', messages: [{ role: 'user', content: 'Synthetic evaluation ' + name }] }),
+      signal: AbortSignal.timeout(60000),
+    });
+    const body = await response.json();
+    assert.equal(response.status, authenticated ? 200 : 401, JSON.stringify(body));
+    return fixtureModel.results().map(v => typeof v === 'string' ? JSON.parse(v) : v);
+  }
+  async function assertSessionDenial(sessionKey) {
     for (const name of names) {
-      fixtureModel.select(name);
-      const response = await fetch('http://127.0.0.1:18789/v1/chat/completions', {
-        method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + token,
-          'x-openclaw-session-key': 'agent:main:main' },
-        body: JSON.stringify({ model: 'openclaw', messages: [{ role: 'user', content: 'Synthetic evaluation ' + name }] }),
-        signal: AbortSignal.timeout(60000),
-      });
-      const body = await response.json();
-      assert.equal(response.status, 200, JSON.stringify(body));
-      const observed = fixtureModel.results().map(v => typeof v === 'string' ? v : JSON.stringify(v));
-      assert.ok(observed.some(v => v === JSON.stringify({ ok: false, error: 'DENIED' })),
-        'Candidate session outcome changed; re-evaluate authority: ' + JSON.stringify(observed));
-      assert.ok(!observed.some(v => v.includes('"preview"')), 'Denied session leaked a preview');
-      evidence.gateway[name + '_ownerSession'] = 'denied_required_authority_not_demonstrated';
+      const observed = await sessionPreview(name, sessionKey);
+      assert.ok(observed.length > 0, 'Host did not return the current tool call result');
+      for (const result of observed) assert.deepEqual(result, { ok: false, error: 'DENIED' });
     }
+  }
+  await startHost();
+  await check('legacy provider session denies without native audience', async () => {
+    await assertSessionDenial('agent:main:main');
+    evidence.gateway.legacyProvider = 'denied';
   });
   assert.equal(digest(), baseline);
   await stop();
@@ -275,8 +295,11 @@ try {
   hostConfig.plugins.slots.memory = 'alfred-authority-fixture';
   hostConfig.plugins.entries['alfred-authority-fixture'] = { enabled: true };
   await startHost();
-  // A fresh sessions.create RPC lets the host persist direct-chat provenance.
-  // A model-supplied session key or an HTTP-created row alone does not grant it.
+  await check('native provider cannot grant owner audience to a chatless HTTP session', async () => {
+    await assertSessionDenial('agent:main:main');
+    evidence.gateway.nativeChatlessSession = 'denied';
+  });
+  // Only the authenticated host lifecycle persists direct-chat provenance.
   const ownerSessionKey = 'agent:main:alfred-native-evaluation';
   const creation = spawnSync(process.execPath, [cli, 'gateway', 'call', 'sessions.create',
     '--params', JSON.stringify({ key: ownerSessionKey }), '--json', '--timeout', '30000'], {
@@ -284,22 +307,31 @@ try {
     env: { ...process.env, OPENCLAW_STATE_DIR: state, OPENCLAW_CONFIG_PATH: configPath },
   });
   assert.equal(creation.status, 0, (creation.stderr || '').replaceAll(token, '[redacted]').replaceAll(dir, '[temporary]').slice(-2000));
+  await check('owner session key without authentication grants no access', async () => {
+    assert.deepEqual(await sessionPreview(names[0], ownerSessionKey, false), []);
+  });
   await check('native provider session supplies real owner authority for both previews', async () => {
     for (const name of names) {
-      fixtureModel.select(name);
-      const response = await fetch('http://127.0.0.1:18789/v1/chat/completions', {
-        method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + token,
-          'x-openclaw-session-key': ownerSessionKey },
-        body: JSON.stringify({ model: 'openclaw', messages: [{ role: 'user', content: 'Synthetic native evaluation ' + name }] }),
-        signal: AbortSignal.timeout(60000),
-      });
-      const body = await response.json();
-      assert.equal(response.status, 200, JSON.stringify(body));
-      const observed = fixtureModel.results().map(v => typeof v === 'string' ? JSON.parse(v) : v);
-      assert.ok(observed.some(v => v.ok === true && v.preview?.shown === 1),
-        'Native session did not release preview: ' + JSON.stringify(observed));
+      const observed = await sessionPreview(name, ownerSessionKey);
+      assert.ok(observed.length > 0, 'Host did not return the current tool call result');
+      for (const result of observed) {
+        assert.equal(result.ok, true);
+        assert.equal(result.preview.shown, 1);
+        assert.equal(result.preview.omitted, 0);
+        if (name === names[0]) assert.ok(result.preview.text.includes('Synthetic fixture task'));
+        else assert.equal(JSON.parse(result.preview.text).length, 1);
+      }
       evidence.gateway[name + '_nativeOwnerSession'] = 'success';
     }
+  });
+  assert.equal(digest(), baseline);
+  await stop();
+  hostConfig.plugins.slots.memory = 'memory-core';
+  hostConfig.plugins.entries['alfred-authority-fixture'].enabled = false;
+  await startHost();
+  await check('direct-chat provenance alone cannot grant authority with legacy provider', async () => {
+    await assertSessionDenial(ownerSessionKey);
+    evidence.gateway.legacyDirectSession = 'denied';
   });
   assert.equal(digest(), baseline);
   await stop();

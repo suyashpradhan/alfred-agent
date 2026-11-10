@@ -85,8 +85,8 @@ const plugin = defineToolPlugin({
   })),
 });
 
- // The pinned convenience helper emits v1 factories. Opt into the public v2
- // registration contract without manufacturing or weakening host authority.
+// The pinned convenience helper emits v1 factories. Opt into the public v2
+// registration contract without manufacturing or weakening host authority.
 const register = plugin.register;
 plugin.register = api => register({
   ...api,

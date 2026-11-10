@@ -86,9 +86,13 @@ no Railway access or deployment has occurred. Stage 1 live validation remains ou
 
 ## Read-only OpenClaw candidate evaluation
 
-Stage A now has a two-tool synthetic plugin and isolated cloud evaluation; see
-[ADR 0010](decisions/0010-readonly-plugin-evaluation.md) and [evidence](testing/openclaw-readonly-evaluation.md).
-OpenClaw 2026.11.2 / Node 24.16.0 loads the staged artifact. SDK fixture previews succeed, but actual
-HTTP calls deny missing live owner-memory authority. A normal session driven by a loopback protocol fixture also denies; successful authenticated
-owner-session preview is still unverified, so Stage A acceptance is incomplete and Stage B remains blocked. Do not weaken
-guards or infer production compatibility. No Railway access, real accounts or deployment occurred.
+The two-tool synthetic plugin now uses v2 invocation authority. The pinned OpenClaw 2026.11.2
+host requires a native memory provider and durable direct-chat provenance to grant an owner-private
+audience. An isolated no-corpus provider fixture and authenticated sessions.create RPC demonstrate
+successful real-host previews; missing prerequisites still deny. Security checks remain intact.
+See [ADR 0011](decisions/0011-readonly-authority-compatibility.md) and
+[evaluation evidence](testing/openclaw-readonly-evaluation.md); PR #9 records final cloud results.
+
+This is conditional candidate compatibility, not a production memory integration. The fixture
+is not shipped in Alfred's artifact. A production provider decision and deployed-version verification
+remain separate approval gates; Stage B is not authorized. No Railway access or deployment.

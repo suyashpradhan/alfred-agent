@@ -1,54 +1,49 @@
 # Stage A read-only plugin evaluation
 
-## Result and compatibility limit
+## Current result
 
-The candidate plugin compiles, its manifest validates, and OpenClaw 2026.11.2 loads the staged
-artifact in an isolated Gateway. The actual HTTP tools endpoint reaches both plugin tools, but
-both return DENIED because the route does not supply live owner-private memory audience authority.
-This is a successful fail-closed test, NOT a successful authenticated preview.
+Both tools succeed in an actual isolated OpenClaw 2026.11.2 Gateway when it has a native memory
+provider and a host-created direct-chat session with owner authority. The initial successful
+[cloud run #27](https://github.com/suyashpradhan/alfred-agent/actions/runs/42805677232) passed 20
+assertion groups. PR #9 records the final expanded suite and checks on its current head.
 
-Positive briefing/eligibility tests use synthetic SDK factory contexts. A normal Gateway session driven by a deterministic loopback model-protocol fixture also reaches
-the plugin but returns DENIED. Successful real-host owner-session preview invocation remains unverified. Stage A's positive host-authorization
-acceptance is therefore incomplete; Stage B and production deployment remain blocked.
-The recommended follow-up is a separately reviewed investigation of the pinned
-release's authority lifecycle and native memory-provider requirements, without relaxing guards or treating an operator token as
-memory-audience proof. No paid model or provider account was used in this evaluation.
+The plugin's existing authorization checks remain intact, and registration now requires v2 live
+invocation authority. See [ADR 0011](../decisions/0011-readonly-authority-compatibility.md).
+PR #8's denials were caused by unmet prerequisites: memory-core is legacy in this pinned version,
+and HTTP-only session creation does not establish durable direct-chat provenance.
 
-Pinned source confirms the context passes through the prepared memory audience; the HTTP tool
-resolution route does not prepare one:
-- [Plugin context](https://github.com/openclaw/openclaw/blob/b556fdf457b026574bf0f1e7b4914b15f3f179ce/src/agents/openclaw-tools.plugin-context.ts)
-- [Gateway tool resolution](https://github.com/openclaw/openclaw/blob/b556fdf457b026574bf0f1e7b4914b15f3f179ce/src/gateway/tool-resolution.ts)
+## What is tested
 
-## Verified evidence
-
-[Cloud evaluation run #12](https://github.com/suyashpradhan/alfred-agent/actions/runs/42660207344)
-passed 18 evaluation checks with Node 24.16.0 and OpenClaw 2026.11.2.
-These are assertion groups in the evaluation harness, separate from the existing 117 domain tests.
-The final PR records checks on its current head.
-
-| Check | Evidence |
+| Boundary | Required outcome |
 | --- | --- |
-| SDK registration | Exactly two optional read tools |
-| Positive preview | Synthetic host-context fixtures succeed |
-| Permission failures | Missing/wrong/stale audience, missing guards, wrong identity and abort deny |
-| Input/policy/storage | Extra arguments, invalid policy, clock rollback, missing/corrupt storage fail closed |
-| Bounds | 20-entry limit, omitted count and 64-KiB serialized output rejection |
-| No module writes | Fixture hash and revision unchanged; no reminder reservation |
-| Packaging | Strict own-source TypeScript build, CLI manifest validation, staged distributable |
-| Gateway disabled/auth/policy | Disabled plugin unavailable, unauthenticated request rejected, mutating/message tools unavailable |
-| Gateway session | Loopback protocol fixture requests actual tools; required authority is not demonstrated and both deny |
-| Gateway enabled | Both tools reached; both denied absent memory-audience authority |
-| Isolation | Runtime namespace exposes loopback only; no real channel credentials or external provider calls |
+| Native provider plus authenticated host-created direct session | Both actual Gateway previews succeed |
+| Legacy provider | Private preview denied |
+| Native provider plus chatless HTTP-created session | Private preview denied |
+| Owner session key without authentication | HTTP 401; no tool result |
+| Direct tools endpoint | Private preview denied |
+| Disabled plugin / excluded mutation tools | Unavailable |
+| SDK authority failures | Missing/wrong identity/audience, missing or stale guards, abort deny |
+| Final guard failures | Both tools deny if either guard becomes stale before release |
+| Inputs and storage | Invalid arguments/policy/time, missing/corrupt/locked storage fail closed |
+| Read-only bounds | At most 20 entries, 64 KiB, unchanged SQLite digest/revision |
+| Packaging | Strict own-source build, generated manifest validation, staged runtime package |
+| Fixture isolation | Native fixture has no readable corpus or tools; not shipped with Alfred |
 
-Measured in run #12 on a small synthetic fixture: read median 0.39 ms, maximum 0.78 ms,
-exclusive-lock failure 252 ms. These are fixture measurements, not production latency guarantees.
-The 250-ms lock wait blocks the event loop synchronously: a future rollout needs a latency budget
-and may require worker isolation or the service alternative if contention is material.
+SDK contexts test adapter behavior; only the native session test demonstrates host-issued authority.
+Stale-guard coverage is at the adapter boundary, not an end-to-end session-reset test.
+The protocol fixture filters responses by unique current call ID so prior transcript results cannot
+satisfy a new invocation. No real model or provider account is involved.
 
-Initial startup failures exposed a packaging boundary: embedding the host development installation
-inside the plugin source root caused the pinned Gateway to reject source capture. Staging a
-self-contained artifact root separately from the host installation resolved startup without
-changing OpenClaw or bypassing its source guard. Readiness, not /healthz liveness, gates invocation.
+## Scope and limitations
+
+The native provider is an evaluation fixture whose reads return unavailable. The real host,
+not the fixture or Alfred, mints the audience and validates its leases. A deployable native memory
+provider has NOT been selected or built. Production compatibility, deployed version and preservation
+of Alfred's existing memory remain unverified. Stage B still requires separate review and approval.
+
+Read measurements from run #27: median 0.37 ms, maximum 0.83 ms; lock failure 251 ms.
+These are small synthetic fixture measurements, not production guarantees. The synchronous SQLite
+lock wait can block the event loop; retain the rollout latency-budget decision.
 
 ## Reproduction and artifacts
 

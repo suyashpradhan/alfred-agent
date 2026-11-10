@@ -41,11 +41,14 @@ Temporary Gateway configuration/authentication, databases and raw runtime logs a
 Actual plugin loading, successful preview invocation and authorization are separate evidence claims.
 See [ADR 0010](../../docs/decisions/0010-readonly-plugin-evaluation.md) for boundaries and rollback.
 
-## Current limitation
+## Authorization prerequisites
 
-Actual Gateway HTTP calls reach both tools but return DENIED because they lack live owner-memory
-audience authority. A normal session driven by a deterministic loopback model-protocol fixture also returns DENIED.
-The fixture observes actual tool responses; it supplies no fabricated host authority.
-Positive previews currently have only synthetic SDK-context evidence. Stage A
-acceptance is incomplete and this is not a deployable integration. See the
-[evaluation report](../../docs/testing/openclaw-readonly-evaluation.md) before extending the harness.
+The pinned host requires a native memory provider and a durable direct-chat root session to
+mint the required owner-private audience. The harness uses a separate no-corpus native-provider
+fixture and authenticated sessions.create RPC. Both tools are registered with contextVersion: 2.
+The host supplies all authority; the plugin still checks identity, audience and both live guards.
+
+Successful actual Gateway previews are covered alongside legacy-provider/chatless denials.
+The test fixture is excluded from artifact/ and must not be installed on Railway.
+This is conditional isolated compatibility, not a deployment-ready memory integration.
+See [ADR 0011](../../docs/decisions/0011-readonly-authority-compatibility.md).

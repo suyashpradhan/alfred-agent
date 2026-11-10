@@ -10,7 +10,6 @@ export async function startFixtureModel() {
       if (!requestedTool || requests > 10) throw Error('unexpected fixture request');
       const toolResults = body.messages.filter(m => m.role === 'tool' && m.tool_call_id === callId);
       observed.push(...toolResults.map(m => m.content));
-      if (issued && toolResults.length === 0) console.log('FIXTURE_CORRELATION', JSON.stringify({ expected: callId, received: body.messages.filter(m => m.role === 'tool').map(m => m.tool_call_id) }));
       const call = !issued; issued = true;
       if (call && !body.tools?.some(t => t.function?.name === requestedTool)) throw Error('required tool absent from host catalog');
       const message = call ? { role: 'assistant', content: null, tool_calls: [{
