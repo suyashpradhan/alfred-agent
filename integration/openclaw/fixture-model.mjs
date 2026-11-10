@@ -1,19 +1,19 @@
 // A deterministic protocol fixture, NOT an LLM or external provider.
 import { createServer } from 'node:http';
 export async function startFixtureModel() {
-  let requestedTool, issued = false, observed = [], requests = 0;
+  let callSequence = 0, callId, requestedTool, issued = false, observed = [], requests = 0;
   const server = createServer(async (req, res) => {
     try {
       if (req.method !== 'POST' || !req.url.endsWith('/chat/completions')) { res.writeHead(404); res.end(); return; }
       let raw = ''; for await (const chunk of req) { raw += chunk; if (raw.length > 1000000) throw Error('fixture input bound'); }
       const body = JSON.parse(raw); requests++;
       if (!requestedTool || requests > 10) throw Error('unexpected fixture request');
-      const toolResults = body.messages.filter(m => m.role === 'tool');
+      const toolResults = body.messages.filter(m => m.role === 'tool' && m.tool_call_id === callId);
       observed.push(...toolResults.map(m => m.content));
       const call = !issued; issued = true;
       if (call && !body.tools?.some(t => t.function?.name === requestedTool)) throw Error('required tool absent from host catalog');
       const message = call ? { role: 'assistant', content: null, tool_calls: [{
-        id: 'fixture-call', type: 'function', function: { name: requestedTool, arguments: '{}' },
+        id: callId, type: 'function', function: { name: requestedTool, arguments: '{}' },
       }] } : { role: 'assistant', content: 'Synthetic fixture complete.' };
       if (body.stream) {
         res.writeHead(200, { 'Content-Type': 'text/event-stream' });
@@ -34,7 +34,7 @@ export async function startFixtureModel() {
   });
   await new Promise(r => server.listen(0, '127.0.0.1', r));
   return { baseUrl: 'http://127.0.0.1:' + server.address().port + '/v1',
-    select(tool) { requestedTool = tool; issued = false; observed = []; requests = 0; },
+    select(tool) { callId = 'fixture-call-' + (++callSequence); requestedTool = tool; issued = false; observed = []; requests = 0; },
     results() { return observed; },
     async close() { server.closeAllConnections(); await new Promise(r => server.close(r)); },
   };

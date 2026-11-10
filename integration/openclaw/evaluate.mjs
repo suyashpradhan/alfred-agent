@@ -39,7 +39,8 @@ function tools(config = cfg, ctx = context()) {
   const definitions = [];
   plugin.register({ pluginConfig: config, registerTool(factory, options) {
     assert.equal(options.optional, true);
-    definitions.push(factory(ctx));
+    assert.equal(factory.contextVersion, 2);
+    definitions.push(factory.create(ctx));
   } });
   return definitions;
 }
@@ -157,6 +158,19 @@ try {
   evidence.tests.push('pinned CLI builds and validates staged manifest');
   copyFileSync(join(artifact, 'openclaw.plugin.json'), join(root, 'openclaw.plugin.json'));
 
+  // Separate test-only package; never include this provider in the Alfred artifact.
+  const authorityFixture = join(root, 'authority-artifact');
+  mkdirSync(authorityFixture, { recursive: true });
+  copyFileSync(join(root, 'dist/authority-fixture.js'), join(authorityFixture, 'index.js'));
+  writeFileSync(join(authorityFixture, 'package.json'), JSON.stringify({
+    name: 'alfred-authority-fixture', version: '0.0.0', private: true, type: 'module',
+    openclaw: { extensions: ['./index.js'] },
+  }));
+  writeFileSync(join(authorityFixture, 'openclaw.plugin.json'), JSON.stringify({
+    id: 'alfred-authority-fixture', kind: 'memory', activation: { onStartup: true },
+    configSchema: { type: 'object', properties: {}, additionalProperties: false },
+  }));
+
   // Full isolated Gateway. Random ephemeral auth is neither printed nor uploaded.
   token = randomBytes(32).toString('hex');
   const configPath = join(dir, 'openclaw.json'), state = join(dir, 'gateway-state');
@@ -252,6 +266,30 @@ try {
         'Candidate session outcome changed; re-evaluate authority: ' + JSON.stringify(observed));
       assert.ok(!observed.some(v => v.includes('"preview"')), 'Denied session leaked a preview');
       evidence.gateway[name + '_ownerSession'] = 'denied_required_authority_not_demonstrated';
+    }
+  });
+  assert.equal(digest(), baseline);
+  await stop();
+  hostConfig.plugins.allow.push('alfred-authority-fixture');
+  hostConfig.plugins.load.paths.push(authorityFixture);
+  hostConfig.plugins.slots.memory = 'alfred-authority-fixture';
+  hostConfig.plugins.entries['alfred-authority-fixture'] = { enabled: true };
+  await startHost();
+  await check('native provider session supplies real owner authority for both previews', async () => {
+    for (const name of names) {
+      fixtureModel.select(name);
+      const response = await fetch('http://127.0.0.1:18789/v1/chat/completions', {
+        method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + token,
+          'x-openclaw-session-key': 'agent:main:main' },
+        body: JSON.stringify({ model: 'openclaw', messages: [{ role: 'user', content: 'Synthetic native evaluation ' + name }] }),
+        signal: AbortSignal.timeout(60000),
+      });
+      const body = await response.json();
+      assert.equal(response.status, 200, JSON.stringify(body));
+      const observed = fixtureModel.results().map(v => typeof v === 'string' ? JSON.parse(v) : v);
+      assert.ok(observed.some(v => v.ok === true && v.preview?.shown === 1),
+        'Native session did not release preview: ' + JSON.stringify(observed));
+      evidence.gateway[name + '_nativeOwnerSession'] = 'success';
     }
   });
   assert.equal(digest(), baseline);

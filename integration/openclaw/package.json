@@ -21,7 +21,7 @@
     "esbuild": "0.25.12"
   },
   "scripts": {
-    "build": "tsc -p tsconfig.json && esbuild index.ts --bundle --platform=node --format=esm --target=node24 --external:openclaw/* --external:typebox --outfile=dist/index.js"
+    "build": "tsc -p tsconfig.json && esbuild index.ts --bundle --platform=node --format=esm --target=node24 --external:openclaw/* --external:typebox --outfile=dist/index.js && esbuild authority-fixture.ts --bundle --platform=node --format=esm --target=node24 --external:openclaw/* --outfile=dist/authority-fixture.js"
   },
   "main": "./dist/index.js",
   "files": [
