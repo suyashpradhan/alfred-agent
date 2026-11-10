@@ -275,12 +275,21 @@ try {
   hostConfig.plugins.slots.memory = 'alfred-authority-fixture';
   hostConfig.plugins.entries['alfred-authority-fixture'] = { enabled: true };
   await startHost();
+  // A fresh sessions.create RPC lets the host persist direct-chat provenance.
+  // A model-supplied session key or an HTTP-created row alone does not grant it.
+  const ownerSessionKey = 'agent:main:alfred-native-evaluation';
+  const creation = spawnSync(process.execPath, [cli, 'gateway', 'call', 'sessions.create',
+    '--params', JSON.stringify({ key: ownerSessionKey }), '--json', '--timeout', '30000'], {
+    encoding: 'utf8', timeout: 45000,
+    env: { ...process.env, OPENCLAW_STATE_DIR: state, OPENCLAW_CONFIG_PATH: configPath },
+  });
+  assert.equal(creation.status, 0, (creation.stderr || '').replaceAll(token, '[redacted]').replaceAll(dir, '[temporary]').slice(-2000));
   await check('native provider session supplies real owner authority for both previews', async () => {
     for (const name of names) {
       fixtureModel.select(name);
       const response = await fetch('http://127.0.0.1:18789/v1/chat/completions', {
         method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + token,
-          'x-openclaw-session-key': 'agent:main:main' },
+          'x-openclaw-session-key': ownerSessionKey },
         body: JSON.stringify({ model: 'openclaw', messages: [{ role: 'user', content: 'Synthetic native evaluation ' + name }] }),
         signal: AbortSignal.timeout(60000),
       });
